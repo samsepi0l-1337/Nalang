@@ -2,6 +2,8 @@
 
 Raspberry Pi Zero 2 W + ADXL355B + I2C 1602. 사양: `docs/prototype-spec.md`.
 구현: `docs/implementation.md`.
+배선·납땜: `docs/wiring.md`.
+로그 코드: `docs/logs.md`.
 
 ## PC에서 테스트
 
@@ -37,3 +39,12 @@ sudo systemctl enable --now vibration-meter
 
 서비스의 `WorkingDirectory`와 `ExecStart` 파이썬 경로를 클론 위치에 맞춘다.
 폰에서 `http://<pi-ip>:5000`.
+
+로그:
+
+```
+journalctl -u vibration-meter -f
+```
+
+`[STAGE] FAIL` 한 줄을 복사해 `docs/logs.md`와 맞춰 본다. 납땜·점퍼는
+`docs/wiring.md`.
