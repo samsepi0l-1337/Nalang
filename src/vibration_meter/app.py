@@ -1,11 +1,19 @@
 import argparse
 import logging
+import socket
 import threading
 import time
 
 from vibration_meter.collector import collect_second
 from vibration_meter.display import show
-from vibration_meter.errors import HINT_LCD_WRITE, HINT_SAMPLE, HardwareError, format_fail, format_ok
+from vibration_meter.errors import (
+    HINT_LCD_WRITE,
+    HINT_SAMPLE,
+    HINT_WEB_BIND,
+    HardwareError,
+    format_fail,
+    format_ok,
+)
 from vibration_meter.hardware import open_display, open_sensor
 from vibration_meter.logutil import get_logger, setup_logging
 from vibration_meter.metrics import RmsHistory
@@ -36,10 +44,21 @@ def publish_reading(
     if lcd is not None:
         try:
             show(lcd, metrics.rms_g, metrics.peak_g, metrics.axis)
+            log.info(format_ok("LCD_WRITE", f"axis={metrics.axis}"))
         except Exception as exc:
             log.error(format_fail("LCD_WRITE", str(exc), HINT_LCD_WRITE), exc_info=True)
     socketio.emit("reading", reading_payload(metrics, history))
     return True
+
+
+def check_web_bind(host: str, port: int) -> None:
+    probe = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
+    try:
+        probe.bind((host, port))
+    except OSError as exc:
+        raise HardwareError("WEB_BIND", str(exc), HINT_WEB_BIND) from exc
+    finally:
+        probe.close()
 
 
 def measure_loop(sensor, lcd, socketio, stop: threading.Event) -> None:
@@ -68,7 +87,7 @@ def main(argv: list[str] | None = None) -> None:
 
     if args.mock:
         lcd = None
-        log.info("[LCD_OPEN] skip (--mock)")
+        log.info(format_ok("LCD_OPEN", "skip (--mock)"))
     else:
         lcd = open_display()
 
@@ -81,6 +100,11 @@ def main(argv: list[str] | None = None) -> None:
     )
     worker.start()
     log.info(format_ok("LOOP", "measure thread started"))
+    try:
+        check_web_bind(args.host, args.port)
+    except HardwareError as exc:
+        log.error(str(exc), exc_info=True)
+        raise SystemExit(1) from exc
     log.info(format_ok("WEB_BIND", f"http://{args.host}:{args.port}"))
     socketio.run(app, host=args.host, port=args.port, allow_unsafe_werkzeug=True)
 

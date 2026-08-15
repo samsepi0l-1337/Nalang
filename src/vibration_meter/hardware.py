@@ -67,11 +67,11 @@ def open_lcd(address: int = 0x27) -> LcdDevice:
     from RPLCD.i2c import CharLCD
 
     log = get_logger()
-    log.info("[LCD_ADDR] trying 0x%02X", address)
+    log.info(format_ok("LCD_ADDR", f"trying 0x{address:02X}"))
     try:
         lcd = RplcdAdapter(CharLCD("PCF8574", address))
     except Exception as exc:
-        log.warning("[LCD_ADDR] FAIL address=0x%02X %s", address, exc)
+        log.warning(format_fail("LCD_ADDR", f"address=0x{address:02X} {exc}", HINT_LCD))
         if address != 0x3F:
             return open_lcd(0x3F)
         raise HardwareError("LCD_OPEN", str(exc), HINT_LCD) from exc

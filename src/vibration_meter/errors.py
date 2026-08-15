@@ -43,3 +43,4 @@ HINT_LCD = (
 )
 HINT_SAMPLE = "센서 SPI 배선·납땜과 DEVID 로그를 확인. README 배선 센서."
 HINT_LCD_WRITE = "I2C 커넥터·백팩 3.3V·주소 0x27/0x3F. README 배선 LCD."
+HINT_WEB_BIND = "포트 점유. 배선 아님. README 로그 표."

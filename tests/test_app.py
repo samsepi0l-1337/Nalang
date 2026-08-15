@@ -1,6 +1,10 @@
 import logging
+import socket
 
-from vibration_meter.app import publish_reading
+import pytest
+
+from vibration_meter.app import check_web_bind, main, publish_reading
+from vibration_meter.errors import HardwareError
 from vibration_meter.metrics import RmsHistory
 
 
@@ -81,3 +85,52 @@ def test_publish_reading_logs_lcd_write_fail_and_keeps_web(caplog):
     assert ok is True
     assert socket.events
     assert any("[LCD_WRITE] FAIL" in rec.message for rec in caplog.records)
+
+
+def test_publish_reading_logs_lcd_write_ok(caplog):
+    caplog.set_level(logging.INFO)
+    lcd = FakeLcd()
+    ok = publish_reading(
+        SequenceSensor(),
+        lcd,
+        RmsHistory(),
+        FakeSocket(),
+        samples=3,
+        duration_s=0.0,
+    )
+    assert ok is True
+    assert lcd.updates == 1
+    assert any("[LCD_WRITE] OK" in rec.message for rec in caplog.records)
+
+
+def test_check_web_bind_fails_when_port_in_use():
+    occupied = socket.socket()
+    occupied.bind(("127.0.0.1", 0))
+    occupied.listen(1)
+    port = occupied.getsockname()[1]
+    try:
+        with pytest.raises(HardwareError) as caught:
+            check_web_bind("127.0.0.1", port)
+        assert caught.value.stage == "WEB_BIND"
+        assert "HINT" in str(caught.value)
+    finally:
+        occupied.close()
+
+
+def test_main_mock_logs_lcd_open_ok(monkeypatch, caplog):
+    caplog.set_level(logging.INFO)
+
+    class FakeSocketIO:
+        def run(self, *_args, **_kwargs):
+            return None
+
+    monkeypatch.setattr("vibration_meter.app.check_web_bind", lambda *_a, **_k: None)
+    monkeypatch.setattr(
+        "vibration_meter.app.create_app",
+        lambda: (object(), FakeSocketIO()),
+    )
+    main(["--mock", "--port", "59999"])
+    messages = [rec.message for rec in caplog.records]
+    assert any("[MOCK] OK" in msg for msg in messages)
+    assert any("[LCD_OPEN] OK" in msg for msg in messages)
+    assert any("[WEB_BIND] OK" in msg for msg in messages)

@@ -1,4 +1,4 @@
-from vibration_meter.errors import HardwareError, format_fail, hint_for_devid
+from vibration_meter.errors import HINT_LCD, HardwareError, format_fail, hint_for_devid
 
 
 def test_format_fail_has_stage_and_hint():
@@ -17,10 +17,27 @@ def test_hardware_error_exposes_stage():
 
 def test_devid_zero_points_to_miso_or_cs():
     hint = hint_for_devid(0x00)
-    assert "MISO" in hint
-    assert "CS" in hint
+    assert "핀21" in hint
+    assert "핀24" in hint
 
 
 def test_devid_ff_points_to_power():
     hint = hint_for_devid(0xFF)
-    assert "VCC" in hint or "3.3" in hint
+    assert "핀1" in hint
+    assert "핀25" in hint
+    assert "5V" in hint
+
+
+def test_devid_other_points_to_mosi_miso_cs():
+    hint = hint_for_devid(0x12)
+    assert "핀19" in hint
+    assert "핀21" in hint
+    assert "핀24" in hint
+
+
+def test_lcd_hint_pins_and_forbids_5v():
+    assert "핀3" in HINT_LCD
+    assert "핀5" in HINT_LCD
+    assert "핀6" in HINT_LCD
+    assert "핀17" in HINT_LCD
+    assert "5V" in HINT_LCD
