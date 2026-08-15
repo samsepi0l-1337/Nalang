@@ -36,6 +36,51 @@ def test_open_display_logs_fail_and_returns_none(caplog):
     assert any("[LCD_OPEN] FAIL" in rec.message for rec in caplog.records)
 
 
+def test_open_spi_uses_bus0_ce0_1mhz_mode0(monkeypatch, caplog):
+    caplog.set_level(logging.INFO)
+
+    class FakeSpiDev:
+        def __init__(self) -> None:
+            self.bus = None
+            self.device = None
+            self.max_speed_hz = 0
+            self.mode = -1
+
+        def open(self, bus: int, device: int) -> None:
+            self.bus = bus
+            self.device = device
+
+    fake = FakeSpiDev()
+    monkeypatch.setitem(sys.modules, "spidev", types.SimpleNamespace(SpiDev=lambda: fake))
+    spi = open_spi()
+    assert spi is fake
+    assert fake.bus == 0
+    assert fake.device == 0
+    assert fake.max_speed_hz == 1_000_000
+    assert fake.mode == 0
+    assert any("[SPI_OPEN] OK" in rec.message for rec in caplog.records)
+
+
+def test_open_lcd_falls_back_from_0x27_to_0x3f(monkeypatch):
+    tried: list[int] = []
+
+    class SelectiveLcd:
+        def __init__(self, _interface: str, address: int) -> None:
+            tried.append(address)
+            if address == 0x27:
+                raise OSError("missing")
+
+        def write_string(self, _text: str) -> None:
+            return None
+
+    fake_i2c = types.SimpleNamespace(CharLCD=SelectiveLcd)
+    monkeypatch.setitem(sys.modules, "RPLCD", types.SimpleNamespace(i2c=fake_i2c))
+    monkeypatch.setitem(sys.modules, "RPLCD.i2c", fake_i2c)
+    lcd = open_lcd(0x27)
+    assert tried == [0x27, 0x3F]
+    assert lcd is not None
+
+
 def test_open_lcd_logs_addr_ok_and_fail_with_hint(monkeypatch, caplog):
     caplog.set_level(logging.INFO)
 

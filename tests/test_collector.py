@@ -50,6 +50,24 @@ def test_collect_second_paces_reads_across_duration(monkeypatch):
     assert sleeps == pytest.approx([0.25, 0.25, 0.25, 0.25])
 
 
+def test_collect_second_defaults_read_1000_samples_over_one_second(monkeypatch):
+    now = 0.0
+
+    def monotonic() -> float:
+        return now
+
+    def sleep(seconds: float) -> None:
+        nonlocal now
+        now += seconds
+
+    monkeypatch.setattr("vibration_meter.collector.time.monotonic", monotonic)
+    monkeypatch.setattr("vibration_meter.collector.time.sleep", sleep)
+    sensor = SequenceSensor([(0.0, 0.0, 1.0)] * 1000)
+    collect_second(sensor)
+    assert sensor.reads == 1000
+    assert now == pytest.approx(1.0)
+
+
 def test_mock_sensor_selects_ac_axis():
     result = read_window(MockSensor(), count=200)
     assert result.axis == "Y"

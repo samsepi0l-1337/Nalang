@@ -1,13 +1,8 @@
+import logging
+
 import pytest
 
-from vibration_meter.adxl355 import (
-    DEVID_AD,
-    FILTER,
-    POWER_CTL,
-    RANGE,
-    Adxl355,
-    Adxl355Error,
-)
+from vibration_meter.adxl355 import DEVID_AD, Adxl355, Adxl355Error
 
 
 class FakeSpi:
@@ -32,12 +27,16 @@ class FakeSpi:
         return [0, 0]
 
 
-def test_begin_configures_8g_1khz_measurement():
+def test_begin_configures_8g_1khz_measurement(caplog):
+    caplog.set_level(logging.INFO)
     spi = FakeSpi()
     Adxl355(spi).begin()
-    assert spi.registers[RANGE] == 0x83
-    assert spi.registers[FILTER] == 0x02
-    assert spi.registers[POWER_CTL] == 0x00
+    assert spi.registers[0x2C] == 0x83
+    assert spi.registers[0x28] == 0x02
+    assert spi.registers[0x2D] == 0x00
+    messages = [rec.message for rec in caplog.records]
+    assert any("[SENSOR_ID] OK" in msg for msg in messages)
+    assert any("[SENSOR_CFG] OK" in msg for msg in messages)
 
 
 def test_begin_rejects_wrong_device_id():

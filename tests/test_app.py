@@ -69,6 +69,7 @@ def test_publish_reading_logs_sample_fail(caplog):
     )
     assert ok is False
     assert any("[SAMPLE] FAIL" in rec.message for rec in caplog.records)
+    assert any("| HINT" in rec.message for rec in caplog.records)
 
 
 def test_publish_reading_logs_lcd_write_fail_and_keeps_web(caplog):
@@ -134,3 +135,76 @@ def test_main_mock_logs_lcd_open_ok(monkeypatch, caplog):
     assert any("[MOCK] OK" in msg for msg in messages)
     assert any("[LCD_OPEN] OK" in msg for msg in messages)
     assert any("[WEB_BIND] OK" in msg for msg in messages)
+    assert any("[BOOT] OK" in msg for msg in messages)
+    assert any("[LOOP] OK" in msg for msg in messages)
+
+
+def test_main_sensor_failure_exits_2(monkeypatch):
+    monkeypatch.setattr(
+        "vibration_meter.app.open_sensor",
+        lambda *_a, **_k: (_ for _ in ()).throw(
+            HardwareError("SENSOR_ID", "bad id", "hint")
+        ),
+    )
+    with pytest.raises(SystemExit) as caught:
+        main([])
+    assert caught.value.code == 2
+
+
+def test_main_web_bind_failure_exits_1(monkeypatch):
+    class FakeSocketIO:
+        def run(self, *_args, **_kwargs):
+            return None
+
+    monkeypatch.setattr("vibration_meter.app.measure_loop", lambda *_a, **_k: None)
+    monkeypatch.setattr(
+        "vibration_meter.app.check_web_bind",
+        lambda *_a, **_k: (_ for _ in ()).throw(
+            HardwareError("WEB_BIND", "in use", "hint")
+        ),
+    )
+    monkeypatch.setattr(
+        "vibration_meter.app.create_app",
+        lambda: (object(), FakeSocketIO()),
+    )
+    with pytest.raises(SystemExit) as caught:
+        main(["--mock"])
+    assert caught.value.code == 1
+
+
+def test_main_lcd_open_fail_does_not_exit(monkeypatch):
+    class FakeSocketIO:
+        def run(self, *_args, **_kwargs):
+            return None
+
+    monkeypatch.setattr(
+        "vibration_meter.app.open_sensor",
+        lambda *_a, **_k: SequenceSensor(),
+    )
+    monkeypatch.setattr("vibration_meter.app.open_display", lambda: None)
+    monkeypatch.setattr("vibration_meter.app.measure_loop", lambda *_a, **_k: None)
+    monkeypatch.setattr("vibration_meter.app.check_web_bind", lambda *_a, **_k: None)
+    monkeypatch.setattr(
+        "vibration_meter.app.create_app",
+        lambda: (object(), FakeSocketIO()),
+    )
+    main(["--port", "59999"])
+
+
+def test_publish_reading_history_caps_at_sixty():
+    history = RmsHistory(maxlen=60)
+    socket = FakeSocket()
+    for _ in range(61):
+        publish_reading(
+            SequenceSensor(),
+            None,
+            history,
+            socket,
+            samples=1,
+            duration_s=0.0,
+        )
+    assert len(history.as_list()) == 60
+    assert len(socket.events) == 61
+    payload = socket.events[-1][1]
+    assert set(payload) == {"rms_g", "peak_g", "axis", "history"}
+    assert "samples" not in payload

@@ -21,3 +21,6 @@ def test_reading_payload_includes_history():
     )
     assert payload["axis"] == "Y"
     assert payload["history"] == [{"t": 1.0, "rms_g": 0.2}]
+    assert set(payload) == {"rms_g", "peak_g", "axis", "history"}
+    assert "x" not in payload
+    assert "samples" not in payload
