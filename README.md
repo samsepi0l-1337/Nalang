@@ -137,5 +137,5 @@ sudo systemctl enable --now vibration-meter
 journalctl -u vibration-meter -f
 ```
 
-`WorkingDirectory`와 `ExecStart`를 클론 경로에 맞춘다. 폰:
+`WorkingDirectory`와 `ExecStart`, `Environment=PYTHONPATH`를 클론 경로에 맞춘다. 폰:
 `http://<pi-ip>:5000`.
