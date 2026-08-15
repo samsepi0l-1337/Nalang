@@ -120,22 +120,28 @@ def test_check_web_bind_fails_when_port_in_use():
 
 def test_main_mock_logs_lcd_open_ok(monkeypatch, caplog):
     caplog.set_level(logging.INFO)
+    bound: dict[str, int] = {}
 
     class FakeSocketIO:
         def emit(self, *_args, **_kwargs):
             return None
 
-        def run(self, *_args, **_kwargs):
-            return None
+        def run(self, _app, host="0.0.0.0", port=0, **_kwargs):
+            bound["run_port"] = port
+
+    def check(host: str, port: int) -> None:
+        bound["bind_port"] = port
 
     monkeypatch.setattr("vibration_meter.app.measure_loop", lambda *_a, **_k: None)
-    monkeypatch.setattr("vibration_meter.app.check_web_bind", lambda *_a, **_k: None)
+    monkeypatch.setattr("vibration_meter.app.check_web_bind", check)
     monkeypatch.setattr(
         "vibration_meter.app.create_app",
         lambda: (object(), FakeSocketIO()),
     )
-    main(["--mock", "--port", "59999"])
+    main(["--mock"])
     messages = [rec.message for rec in caplog.records]
+    assert bound["bind_port"] == 5000
+    assert bound["run_port"] == 5000
     assert any("[MOCK] OK" in msg for msg in messages)
     assert any("[LCD_OPEN] OK" in msg for msg in messages)
     assert any("[WEB_BIND] OK" in msg for msg in messages)
@@ -143,7 +149,8 @@ def test_main_mock_logs_lcd_open_ok(monkeypatch, caplog):
     assert any("[LOOP] OK" in msg for msg in messages)
 
 
-def test_main_sensor_failure_exits_2(monkeypatch):
+def test_main_sensor_failure_exits_2(monkeypatch, caplog):
+    caplog.set_level(logging.ERROR)
     monkeypatch.setattr(
         "vibration_meter.app.open_sensor",
         lambda *_a, **_k: (_ for _ in ()).throw(
@@ -153,9 +160,12 @@ def test_main_sensor_failure_exits_2(monkeypatch):
     with pytest.raises(SystemExit) as caught:
         main([])
     assert caught.value.code == 2
+    assert any("[SENSOR_ID] FAIL" in rec.message for rec in caplog.records)
 
 
-def test_main_web_bind_failure_exits_1(monkeypatch):
+def test_main_web_bind_failure_exits_1(monkeypatch, caplog):
+    caplog.set_level(logging.ERROR)
+
     class FakeSocketIO:
         def run(self, *_args, **_kwargs):
             return None
@@ -174,12 +184,15 @@ def test_main_web_bind_failure_exits_1(monkeypatch):
     with pytest.raises(SystemExit) as caught:
         main(["--mock"])
     assert caught.value.code == 1
+    assert any("[WEB_BIND] FAIL" in rec.message for rec in caplog.records)
 
 
 def test_main_lcd_open_fail_does_not_exit(monkeypatch):
+    ran: dict[str, bool] = {}
+
     class FakeSocketIO:
         def run(self, *_args, **_kwargs):
-            return None
+            ran["web"] = True
 
     monkeypatch.setattr(
         "vibration_meter.app.open_sensor",
@@ -193,6 +206,7 @@ def test_main_lcd_open_fail_does_not_exit(monkeypatch):
         lambda: (object(), FakeSocketIO()),
     )
     main(["--port", "59999"])
+    assert ran.get("web") is True
 
 
 def test_publish_reading_history_caps_at_sixty():

@@ -10,6 +10,9 @@ def test_index_contains_chart_and_socket():
     body = response.get_data(as_text=True)
     assert "Chart.js" in body or "chart.js" in body
     assert "socket.io" in body
+    assert "msg.history" in body
+    assert "p.rms_g" in body
+    assert "socket.on(\"reading\"" in body or "socket.on('reading'" in body
 
 
 def test_reading_payload_includes_history():
