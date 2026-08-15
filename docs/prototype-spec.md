@@ -42,6 +42,8 @@
 동봉 7핀 헤더는 윗줄용이다. SPI 전원·클럭은 윗줄(`VCC`, `GND`, `SCK`), 데이터는
 아랫줄(`MISO`, `MOSI`, `CS`)에 있으므로 **두 줄 모두** 헤더 또는 전선을 납땜한다.
 
+납땜 순서, 숏 검사, 실패 로그 매핑은 `docs/wiring.md`. 로그 코드는 `docs/logs.md`.
+
 ## 3. GPIO 배선
 
 기준 핀맵: `docs/assets/pi-zero-2w-gpio.png` (Pi Zero 2 W 40핀).

@@ -21,9 +21,11 @@ src/vibration_meter/   패키지
   display.py           1602 문자열·출력
   collector.py         1초 창 수집
   webapp.py            Flask + SocketIO
+  logutil.py           stderr 로그
+  errors.py            [STAGE] FAIL/OK, 배선 HINT
   app.py               엔트리
-templates/index.html   Chart.js 대시보드
-tests/                 단위 테스트
+src/vibration_meter/templates/index.html
+tests/
 deploy/vibration-meter.service
 requirements.txt       PC·공통
 requirements-pi.txt    + spidev
@@ -79,8 +81,10 @@ requirements-pi.txt    + spidev
 ### app
 
 - 수집 스레드 → LCD + SocketIO.
-- LCD 실패는 로그 후 웹만 유지 (디스플레이 없이도 측정 확인 가능).
-- `python -m vibration_meter.app` / `python -m vibration_meter.app --mock`
+- 로그: stderr, `[STAGE] OK` / `[STAGE] FAIL ... | HINT ...`. 코드표는
+  `docs/logs.md`. 배선 HINT는 `docs/wiring.md`를 가리킨다.
+- LCD 실패는 로그 후 웹만 유지. 센서 기동 실패는 exit 2.
+- `python -m vibration_meter.app` / `--mock` / `--log-level INFO`
 
 ## 4. 테스트
 
@@ -100,6 +104,7 @@ python3 -m venv .venv
 - SPI 읽기 프레임·RANGE/FILTER/POWER 쓰기
 - LCD 16자 정렬
 - `GET /` 200, 템플릿에 Chart.js·socket.io
+- `[STAGE] FAIL` 형식, DEVID 0x00/0xFF HINT, SAMPLE/LCD_WRITE 실패 로그
 
 ## 5. Pi 실행
 

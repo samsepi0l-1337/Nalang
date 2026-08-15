@@ -1,0 +1,18 @@
+[Unit]
+Description=Vibration meter prototype
+After=network-online.target
+
+[Service]
+Type=simple
+WorkingDirectory=/home/pi/Nalang
+Environment=PYTHONPATH=/home/pi/Nalang/src
+ExecStart=/home/pi/Nalang/.venv/bin/python -m vibration_meter.app
+Restart=on-failure
+RestartSec=3
+User=pi
+StandardOutput=journal
+StandardError=journal
+SyslogIdentifier=vibration-meter
+
+[Install]
+WantedBy=multi-user.target
