@@ -119,7 +119,7 @@ journalctl -u vibration-meter -f
 | `SPI_OPEN` No module named spidev | `requirements-pi.txt`                 |
 | `SENSOR_ID` `0x00`           | MISO 핀21, CS 핀24, 아랫줄 납땜            |
 | `SENSOR_ID` `0xFF`           | VCC 핀1, GND 핀25, 윗줄, 5 V 여부          |
-| `SENSOR_ID` 그 외 ID         | MOSI/MISO 교차, 센서 I2C를 Pi I2C에 연결   |
+| `SENSOR_ID` 그 외 ID         | MOSI/MISO 교차, 센서 I2C 혼선              |
 | `LCD_OPEN`                   | 백팩 3.3 V 핀17, SDA 핀3, SCL 핀5          |
 | `LCD_WRITE`                  | I2C 커넥터 헐거움                          |
 | `SAMPLE` bus nak             | 측정 중 SPI 단선                           |
