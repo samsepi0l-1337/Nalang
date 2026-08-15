@@ -1,4 +1,5 @@
 .venv/
+.worktrees/
 __pycache__/
 *.pyc
 .pytest_cache/
@@ -8,6 +9,6 @@ dist/
 build/
 .DS_Store
 
-# docs/ is tracked (spec, wiring, photos). Never ignore it.
+# docs/ is not in git. Canonical text is README.md.
 docs/
 docs/**
