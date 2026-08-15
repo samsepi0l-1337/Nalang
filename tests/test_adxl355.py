@@ -42,8 +42,12 @@ def test_begin_configures_8g_1khz_measurement():
 
 def test_begin_rejects_wrong_device_id():
     spi = FakeSpi({DEVID_AD: 0x00})
-    with pytest.raises(Adxl355Error):
+    with pytest.raises(Adxl355Error) as caught:
         Adxl355(spi).begin()
+    assert caught.value.stage == "SENSOR_ID"
+    assert "0x00" in str(caught.value)
+    assert "HINT" in str(caught.value)
+    assert "MISO" in caught.value.hint
 
 
 def test_read_xyz_g_one_g_on_z():

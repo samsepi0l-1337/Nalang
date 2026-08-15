@@ -1,6 +1,8 @@
 from typing import Protocol
 
 from vibration_meter.convert import SCALE_8G, bytes_to_raw20, raw20_to_g
+from vibration_meter.errors import HardwareError, format_ok, hint_for_devid
+from vibration_meter.logutil import get_logger
 
 DEVID_AD = 0x00
 RANGE = 0x2C
@@ -18,7 +20,7 @@ class SpiDevice(Protocol):
     def xfer2(self, data: list[int]) -> list[int]: ...
 
 
-class Adxl355Error(RuntimeError):
+class Adxl355Error(HardwareError):
     pass
 
 
@@ -28,12 +30,19 @@ class Adxl355:
         self._lsb_per_g = lsb_per_g
 
     def begin(self) -> None:
+        log = get_logger()
         device_id = self._read(DEVID_AD)
         if device_id != EXPECTED_DEVID_AD:
-            raise Adxl355Error(f"unexpected DEVID_AD 0x{device_id:02X}")
+            raise Adxl355Error(
+                "SENSOR_ID",
+                f"DEVID_AD=0x{device_id:02X} expected=0xAD",
+                hint_for_devid(device_id),
+            )
+        log.info(format_ok("SENSOR_ID", "DEVID_AD=0xAD"))
         self._write(RANGE, RANGE_8G)
         self._write(FILTER, ODR_1000HZ)
         self._write(POWER_CTL, MEASURE)
+        log.info(format_ok("SENSOR_CFG", "RANGE=0x83 FILTER=0x02 POWER=0x00"))
 
     def read_xyz_g(self) -> tuple[float, float, float]:
         raw = self._read_bytes(XDATA3, 9)
