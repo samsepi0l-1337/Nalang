@@ -1,7 +1,7 @@
 from typing import Protocol
 
 from vibration_meter.convert import SCALE_8G, bytes_to_raw20, raw20_to_g
-from vibration_meter.errors import HardwareError, format_ok, hint_for_devid
+from vibration_meter.errors import HINT_SAMPLE, HardwareError, format_ok, hint_for_devid
 from vibration_meter.logutil import get_logger
 
 DEVID_AD = 0x00
@@ -39,9 +39,14 @@ class Adxl355:
                 hint_for_devid(device_id),
             )
         log.info(format_ok("SENSOR_ID", "DEVID_AD=0xAD"))
-        self._write(RANGE, RANGE_8G)
-        self._write(FILTER, ODR_1000HZ)
-        self._write(POWER_CTL, MEASURE)
+        try:
+            self._write(RANGE, RANGE_8G)
+            self._write(FILTER, ODR_1000HZ)
+            self._write(POWER_CTL, MEASURE)
+        except HardwareError:
+            raise
+        except Exception as exc:
+            raise Adxl355Error("SENSOR_CFG", str(exc), HINT_SAMPLE) from exc
         log.info(format_ok("SENSOR_CFG", "RANGE=0x83 FILTER=0x02 POWER=0x00"))
 
     def read_xyz_g(self) -> tuple[float, float, float]:

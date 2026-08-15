@@ -33,3 +33,11 @@ def test_rms_history_keeps_last_sixty():
     assert points[0]["t"] == 5.0
     assert points[-1]["t"] == 64.0
     assert points[-1]["rms_g"] == 6.4
+
+
+def test_rms_history_drops_points_older_than_sixty_seconds():
+    history = RmsHistory(maxlen=120)
+    history.push(0.0, 0.1)
+    history.push(61.0, 0.2)
+    points = history.as_list()
+    assert points == [{"t": 61.0, "rms_g": 0.2}]

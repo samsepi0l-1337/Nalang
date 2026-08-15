@@ -49,6 +49,20 @@ def test_begin_rejects_wrong_device_id():
     assert "MISO" in caught.value.hint
 
 
+class IdOkWriteBoomSpi(FakeSpi):
+    def xfer2(self, data: list[int]) -> list[int]:
+        if data[0] & 1:
+            return super().xfer2(data)
+        raise OSError("mosi nak")
+
+
+def test_begin_write_failure_is_sensor_cfg():
+    with pytest.raises(Adxl355Error) as caught:
+        Adxl355(IdOkWriteBoomSpi()).begin()
+    assert caught.value.stage == "SENSOR_CFG"
+    assert "mosi nak" in str(caught.value)
+
+
 def test_read_xyz_g_one_g_on_z():
     spi = FakeSpi()
     spi.registers[0x0E] = 0x0F
