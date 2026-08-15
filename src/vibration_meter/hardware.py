@@ -5,6 +5,7 @@ from vibration_meter.adxl355 import Adxl355, SpiDevice
 from vibration_meter.display import LcdDevice
 from vibration_meter.errors import (
     HINT_LCD,
+    HINT_SAMPLE,
     HINT_SPI_MISSING,
     HINT_SPI_PERM,
     HINT_SPIDEV_PKG,
@@ -78,13 +79,18 @@ def open_lcd(address: int = 0x27) -> LcdDevice:
     return lcd
 
 
-def open_sensor(mock: bool) -> Adxl355 | MockSensor:
+def open_sensor(mock: bool, spi: SpiDevice | None = None) -> Adxl355 | MockSensor:
     log = get_logger()
     if mock:
         log.info(format_ok("MOCK", "synthetic sine on Y, no SPI"))
         return MockSensor()
-    sensor = Adxl355(open_spi())
-    sensor.begin()
+    sensor = Adxl355(spi if spi is not None else open_spi())
+    try:
+        sensor.begin()
+    except HardwareError:
+        raise
+    except Exception as exc:
+        raise HardwareError("SENSOR_ID", str(exc), HINT_SAMPLE) from exc
     return sensor
 
 

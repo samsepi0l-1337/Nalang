@@ -32,3 +32,15 @@ def test_open_display_logs_fail_and_returns_none(caplog):
     lcd = open_display(open_at=opener)
     assert lcd is None
     assert any("LCD_OPEN" in rec.message for rec in caplog.records)
+
+
+class BoomSpi:
+    def xfer2(self, data: list[int]) -> list[int]:
+        raise OSError("spi nak")
+
+
+def test_open_sensor_begin_oserror_is_hardware_error():
+    with pytest.raises(HardwareError) as caught:
+        open_sensor(mock=False, spi=BoomSpi())
+    assert caught.value.stage == "SENSOR_ID"
+    assert "spi nak" in str(caught.value)
