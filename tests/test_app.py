@@ -122,9 +122,13 @@ def test_main_mock_logs_lcd_open_ok(monkeypatch, caplog):
     caplog.set_level(logging.INFO)
 
     class FakeSocketIO:
+        def emit(self, *_args, **_kwargs):
+            return None
+
         def run(self, *_args, **_kwargs):
             return None
 
+    monkeypatch.setattr("vibration_meter.app.measure_loop", lambda *_a, **_k: None)
     monkeypatch.setattr("vibration_meter.app.check_web_bind", lambda *_a, **_k: None)
     monkeypatch.setattr(
         "vibration_meter.app.create_app",
