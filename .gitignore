@@ -7,3 +7,7 @@ __pycache__/
 dist/
 build/
 .DS_Store
+
+# docs/ is tracked (spec, wiring, photos). Never ignore it.
+!docs/
+!docs/**
