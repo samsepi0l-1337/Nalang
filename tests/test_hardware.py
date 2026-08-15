@@ -18,6 +18,16 @@ def test_open_spi_missing_device_uses_spi_open_stage():
     assert "spidev" in caught.value.hint.lower() or "SPI" in caught.value.hint
 
 
+def test_open_spi_oserror_is_spi_open():
+    def create():
+        raise OSError("EIO")
+
+    with pytest.raises(HardwareError) as caught:
+        open_spi(create=create)
+    assert caught.value.stage == "SPI_OPEN"
+    assert "EIO" in str(caught.value)
+
+
 def test_open_sensor_mock_logs_ok(caplog):
     caplog.set_level(logging.INFO)
     sensor = open_sensor(mock=True)

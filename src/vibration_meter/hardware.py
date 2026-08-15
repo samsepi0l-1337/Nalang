@@ -59,6 +59,8 @@ def open_spi(create: SpiFactory | None = None) -> SpiDevice:
         raise HardwareError("SPI_OPEN", str(exc), HINT_SPI_PERM) from exc
     except ModuleNotFoundError as exc:
         raise HardwareError("SPI_OPEN", str(exc), HINT_SPIDEV_PKG) from exc
+    except OSError as exc:
+        raise HardwareError("SPI_OPEN", str(exc), HINT_SPI_MISSING) from exc
     log.info(format_ok("SPI_OPEN", "/dev/spidev0.0 1MHz mode0"))
     return spi
 
