@@ -10,7 +10,7 @@ def test_index_contains_chart_and_socket():
     body = response.get_data(as_text=True)
     assert "Chart.js" in body or "chart.js" in body
     assert "socket.io" in body
-    assert "msg.history.map((p) => p.rms_g)" in body
+    assert "chart.data.datasets[0].data = msg.history.map((p) => p.rms_g)" in body
     assert "socket.on(\"reading\"" in body or "socket.on('reading'" in body
 
 
