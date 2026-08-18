@@ -51,6 +51,8 @@ def open_spi(create: SpiFactory | None = None) -> SpiDevice:
             spi.open(0, 0)
             spi.max_speed_hz = 1_000_000
             spi.mode = 0
+            spi.lsbfirst = False
+            spi.bits_per_word = 8
         else:
             spi = create()
     except FileNotFoundError as exc:

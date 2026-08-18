@@ -18,7 +18,8 @@ def hint_for_devid(value: int) -> str:
     if value == 0x00:
         return (
             "MISO(핀21) 단선, CS(핀24) 미연결, 또는 아랫줄(MISO/MOSI/CS) 미납땜. "
-            "README 배선 표: MISO 핀21, CS 핀24, 아랫줄 납땜."
+            "beginSPI처럼 CS를 CE0에 연결한다. SCLK/MISO를 GND에 묶는 I2C 배선은 쓰지 않는다. "
+            "아두이노 D2는 Pi 핀2(5V)가 아니다. README 배선 표: MISO 핀21, CS 핀24."
         )
     if value == 0xFF:
         return (
@@ -27,7 +28,7 @@ def hint_for_devid(value: int) -> str:
         )
     return (
         "MOSI(핀19)/MISO(핀21) 교차, CS가 CE0(핀24)인지, "
-        "센서 I2C 핀을 Pi I2C에 붙이지 않았는지 확인. README 배선."
+        "CL-SCL/DA-SDA를 쓰지 않았는지 확인. README 배선."
     )
 
 

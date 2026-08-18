@@ -10,22 +10,23 @@ Raspberry Pi Zero 2 W 한 대, 기존 Wi-Fi. 센서 ADXL355B(SPI) + I2C 1602.
 센서와 LCD 백팩은 **3.3 V만**. 5 V 금지.
 
 GPIO 17(핀 11)은 CS가 아니다. CS는 **핀 24** (SPI0 CE0 → `/dev/spidev0.0`).
+아두이노 `spiCsPin = 2`는 D2이지 Pi 핀 2(5 V)가 아니다.
 
 센서 I2C 핀(`CL-SCL`, `DA-SDA`, `SA0`)은 LCD 버스(핀 3·5)에 붙이지 않는다.
-`DRDY`, `INT1`, `INT2`는 연결하지 않는다.
+`DRDY`, `INT1`, `INT2`는 연결하지 않는다. `beginI2C` 열(SCLK/MISO→GND)은 쓰지 않는다.
 
 ### 센서 ADXL355B → Pi
 
-동봉 7핀 헤더는 윗줄만 덮는다. SPI 데이터는 아랫줄이라 **두 줄 모두** 납땜한다.
+PL_ADXL355 `beginSPI`와 같은 4선. 동봉 7핀 헤더는 윗줄만 덮는다. SPI 데이터는 아랫줄이라 **두 줄 모두** 납땜한다.
 
-| 센서 실크 | 줄     | Pi 핀 | 신호      |
-| --------- | ------ | ----- | --------- |
-| VCC       | 윗줄   | 1     | 3.3 V     |
-| GND       | 윗줄   | 25    | GND       |
-| SCK       | 윗줄   | 23    | SPI0 SCLK |
-| MOSI      | 아랫줄 | 19    | SPI0 MOSI |
-| MISO      | 아랫줄 | 21    | SPI0 MISO |
-| CS        | 아랫줄 | 24    | SPI0 CE0  |
+| ADXL355    | 아두이노 SPI | Pi 핀 | 신호      |
+| ---------- | ------------ | ----- | --------- |
+| VCC        | 3.3 V        | 1     | 3.3 V     |
+| GND        | GND          | 25    | GND       |
+| SCLK/Vssio | SCLK         | 23    | SPI0 SCLK |
+| MOSI/SDA   | MOSI         | 19    | SPI0 MOSI |
+| MISO/ASEL  | MISO         | 21    | SPI0 MISO |
+| CS/SCL     | D2 (GPIO CS) | 24    | SPI0 CE0  |
 
 ### LCD 1602 I2C 백팩 → Pi
 
@@ -117,9 +118,9 @@ journalctl -u vibration-meter -f
 | `SPI_OPEN` spidev 없음       | raspi-config SPI, 재부팅                   |
 | `SPI_OPEN` Permission denied | `usermod -aG spi,i2c $USER` 후 재로그인    |
 | `SPI_OPEN` No module named spidev | `requirements-pi.txt`                 |
-| `SENSOR_ID` `0x00`           | MISO 핀21, CS 핀24, 아랫줄 납땜            |
+| `SENSOR_ID` `0x00`           | MISO 핀21, CS 핀24, beginSPI               |
 | `SENSOR_ID` `0xFF`           | VCC 핀1, GND 핀25, 윗줄, 5 V 여부          |
-| `SENSOR_ID` 그 외 ID         | MOSI/MISO 교차, 센서 I2C를 Pi I2C에 연결   |
+| `SENSOR_ID` 그 외 ID         | MOSI/MISO 교차, CL-SCL/DA-SDA 연결         |
 | `LCD_OPEN`                   | 백팩 3.3 V 핀17, SDA 핀3, SCL 핀5          |
 | `LCD_WRITE`                  | I2C 커넥터 헐거움                          |
 | `SAMPLE` bus nak             | 측정 중 SPI 단선                           |

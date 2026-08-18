@@ -19,6 +19,8 @@ def test_devid_zero_points_to_miso_or_cs():
     hint = hint_for_devid(0x00)
     assert "MISO" in hint
     assert "CS" in hint
+    assert "beginSPI" in hint
+    assert "I2C" in hint
 
 
 def test_devid_ff_points_to_power():

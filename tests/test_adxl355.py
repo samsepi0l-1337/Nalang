@@ -7,6 +7,7 @@ from vibration_meter.adxl355 import (
     RANGE,
     Adxl355,
     Adxl355Error,
+    spi_command,
 )
 
 
@@ -14,12 +15,16 @@ class FakeSpi:
     def __init__(self, registers: dict[int, int] | None = None) -> None:
         self.registers = {i: 0 for i in range(0x40)}
         self.registers[DEVID_AD] = 0xAD
+        self.registers[RANGE] = 0x81
+        self.registers[POWER_CTL] = 0x01
         if registers:
             self.registers.update(registers)
         self.writes: list[tuple[int, int]] = []
+        self.commands: list[int] = []
 
     def xfer2(self, data: list[int]) -> list[int]:
         cmd = data[0]
+        self.commands.append(cmd)
         reg = cmd >> 1
         if cmd & 1:
             out = [0]
@@ -32,9 +37,15 @@ class FakeSpi:
         return [0, 0]
 
 
+def test_spi_command_matches_pl_adxl355():
+    assert spi_command(DEVID_AD, True) == 0x01
+    assert spi_command(RANGE, False) == (RANGE << 1)
+
+
 def test_begin_configures_8g_1khz_measurement():
     spi = FakeSpi()
     Adxl355(spi).begin()
+    assert spi.commands[0] == spi_command(DEVID_AD, True)
     assert spi.registers[RANGE] == 0x83
     assert spi.registers[FILTER] == 0x02
     assert spi.registers[POWER_CTL] == 0x00
@@ -48,6 +59,7 @@ def test_begin_rejects_wrong_device_id():
     assert "0x00" in str(caught.value)
     assert "HINT" in str(caught.value)
     assert "MISO" in caught.value.hint
+    assert "beginSPI" in caught.value.hint
 
 
 def test_read_xyz_g_one_g_on_z():

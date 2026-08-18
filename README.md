@@ -14,6 +14,8 @@ Raspberry Pi Zero 2 W + ADXL355B + I2C 1602. 사양·배선·납땜·로그는 �
 
 센서는 EVAL 보드가 아니다. 칩 각인 `ADXL355B`. 윗줄 7홀(왼쪽→오른쪽): `CL-SCL`, `DA-SDA`, `SA0`, `SCK`, `INT2`, `VCC`, `GND`. 아랫줄 5홀: `DRDY`, `INT1`, `MISO`, `MOSI`, `CS`. 동봉 7핀은 **윗줄 전용**. SPI 데이터는 아랫줄이라 **두 줄 모두** 납땜한다.
 
+인터페이스는 PL_ADXL355 `beginSPI`와 같다. `beginI2C`(MISO/ASEL→GND, SCLK/Vssio→GND)는 쓰지 않는다. 아두이노 `spiCsPin = 2`는 **D2**이지, Pi 헤더 핀 2(5 V)가 아니다. Pi CS는 **핀 24**(SPI0 CE0).
+
 ## 배선
 
 센서·LCD 백팩에 **5 V 금지**. GPIO 17(핀 11) “Chip Enable”은 CS가 아니다. CS는 **핀 24** (SPI0 CE0 → `/dev/spidev0.0`).
@@ -22,14 +24,18 @@ Raspberry Pi Zero 2 W + ADXL355B + I2C 1602. 사양·배선·납땜·로그는 �
 
 ### 센서 ADXL355B → Pi
 
-| 센서 실크 | 줄     | BCM | Pi 핀 | 신호      | 빠지면 로그               |
-| --------- | ------ | --- | ----- | --------- | ------------------------- |
-| VCC       | 윗줄   | —   | 1     | 3.3 V     | `SENSOR_ID` `0xFF`        |
-| GND       | 윗줄   | —   | 25    | GND       | `SENSOR_ID` `0xFF`        |
-| SCK       | 윗줄   | 11  | 23    | SPI0 SCLK | `SENSOR_ID` `0x00`/`0xFF` |
-| MOSI      | 아랫줄 | 10  | 19    | SPI0 MOSI | `SENSOR_ID` 이상한 ID     |
-| MISO      | 아랫줄 | 9   | 21    | SPI0 MISO | `SENSOR_ID` `0x00`        |
-| CS        | 아랫줄 | 8   | 24    | SPI0 CE0  | `SENSOR_ID` `0x00`        |
+PL_ADXL355 SPI 열과 같은 4선. I2C 열의 GND 묶기는 하지 않는다.
+
+| ADXL355     | 아두이노 SPI | Pi 핀 | BCM | 신호      | 빠지면 로그               |
+| ----------- | ------------ | ----- | --- | --------- | ------------------------- |
+| VCC         | 3.3 V        | 1     | —   | 3.3 V     | `SENSOR_ID` `0xFF`        |
+| GND         | GND          | 25    | —   | GND       | `SENSOR_ID` `0xFF`        |
+| SCLK/Vssio  | SCLK         | 23    | 11  | SPI0 SCLK | `SENSOR_ID` `0x00`/`0xFF` |
+| MOSI/SDA    | MOSI         | 19    | 10  | SPI0 MOSI | `SENSOR_ID` 이상한 ID     |
+| MISO/ASEL   | MISO         | 21    | 9   | SPI0 MISO | `SENSOR_ID` `0x00`        |
+| CS/SCL      | D2 (GPIO CS) | 24    | 8   | SPI0 CE0  | `SENSOR_ID` `0x00`        |
+
+보드 실크: `SCLK/Vssio`=`SCK` 윗줄, `MOSI`/`MISO`/`CS` 아랫줄. `CL-SCL`은 아두이노 I2C의 SCL이지 SPI CS가 아니다.
 
 ### LCD 1602 I2C 백팩 → Pi
 
@@ -92,9 +98,9 @@ stderr. 형식: `[SENSOR_ID] FAIL DEVID_AD=0x00 expected=0xAD | HINT ...`
 | `SPI_OPEN`  | spidev 없음            | raspi-config SPI, 재부팅      |
 | `SPI_OPEN`  | Permission denied      | `usermod -aG spi,i2c $USER`   |
 | `SPI_OPEN`  | No module named spidev | `requirements-pi.txt`         |
-| `SENSOR_ID` | `DEVID_AD=0x00`        | MISO 핀21, CS 핀24, 아랫줄    |
+| `SENSOR_ID` | `DEVID_AD=0x00`        | MISO 핀21, CS 핀24, beginSPI  |
 | `SENSOR_ID` | `DEVID_AD=0xFF`        | VCC 핀1, GND 핀25, 윗줄, 5 V  |
-| `SENSOR_ID` | 그 외 ID               | MOSI/MISO 교차, 센서 I2C 혼선 |
+| `SENSOR_ID` | 그 외 ID               | MOSI/MISO 교차, CL-SCL/DA-SDA |
 | `LCD_OPEN`  | I2C / no device        | 백팩 3.3 V 핀17, SDA/SCL      |
 | `LCD_WRITE` | i2c timeout            | 커넥터 헐거움                 |
 | `SAMPLE`    | bus nak                | 측정 중 SPI 단선              |

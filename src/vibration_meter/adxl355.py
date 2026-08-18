@@ -10,10 +10,14 @@ FILTER = 0x28
 POWER_CTL = 0x2D
 XDATA3 = 0x08
 
-RANGE_8G = 0x83
+RANGE_MASK = 0x03
+RANGE_8G_SEL = 0x03
+FILTER_ODR_MASK = 0x0F
 ODR_1000HZ = 0x02
-MEASURE = 0x00
+STANDBY = 0x01
+RANGE_8G = 0x83
 EXPECTED_DEVID_AD = 0xAD
+SPI_READ = 1
 
 
 class SpiDevice(Protocol):
@@ -22,6 +26,10 @@ class SpiDevice(Protocol):
 
 class Adxl355Error(HardwareError):
     pass
+
+
+def spi_command(register: int, read: bool) -> int:
+    return (register << 1) | (SPI_READ if read else 0)
 
 
 class Adxl355:
@@ -39,10 +47,27 @@ class Adxl355:
                 hint_for_devid(device_id),
             )
         log.info(format_ok("SENSOR_ID", "DEVID_AD=0xAD"))
-        self._write(RANGE, RANGE_8G)
-        self._write(FILTER, ODR_1000HZ)
-        self._write(POWER_CTL, MEASURE)
-        log.info(format_ok("SENSOR_CFG", "RANGE=0x83 FILTER=0x02 POWER=0x00"))
+        self.set_range_8g()
+        self.set_odr_1000hz()
+        self.enable_measurement()
+        log.info(
+            format_ok(
+                "SENSOR_CFG",
+                f"RANGE=0x{RANGE_8G:02X} FILTER=0x{ODR_1000HZ:02X} POWER=0x00",
+            )
+        )
+
+    def set_range_8g(self) -> None:
+        current = self._read(RANGE)
+        self._write(RANGE, (current & ~RANGE_MASK) | RANGE_8G_SEL)
+
+    def set_odr_1000hz(self) -> None:
+        current = self._read(FILTER)
+        self._write(FILTER, (current & ~FILTER_ODR_MASK) | ODR_1000HZ)
+
+    def enable_measurement(self) -> None:
+        current = self._read(POWER_CTL)
+        self._write(POWER_CTL, current & ~STANDBY)
 
     def read_xyz_g(self) -> tuple[float, float, float]:
         raw = self._read_bytes(XDATA3, 9)
@@ -59,8 +84,8 @@ class Adxl355:
         return self._read_bytes(register, 1)[0]
 
     def _read_bytes(self, register: int, count: int) -> list[int]:
-        reply = self._spi.xfer2([(register << 1) | 1] + [0] * count)
+        reply = self._spi.xfer2([spi_command(register, True)] + [0] * count)
         return reply[1:]
 
     def _write(self, register: int, value: int) -> None:
-        self._spi.xfer2([(register << 1) | 0, value])
+        self._spi.xfer2([spi_command(register, False), value])
