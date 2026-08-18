@@ -1,4 +1,4 @@
-from vibration_meter.display import format_peak_line, format_rms_line, show
+from vibration_meter.display import format_outlier_line, format_peak_line, format_rms_line, show
 
 
 class FakeLcd:
@@ -28,3 +28,14 @@ def test_show_writes_both_lines():
     assert lcd.lines is not None
     assert lcd.lines[0].startswith("RMS")
     assert "Z" in lcd.lines[1]
+
+
+def test_outlier_line_is_16_chars_and_show_swaps_line2():
+    line = format_outlier_line("Y")
+    assert len(line) == 16
+    assert line.startswith("OUTLIER")
+    assert line.endswith("Y")
+    lcd = FakeLcd()
+    show(lcd, 0.123, 0.456, "Y", alert=True)
+    assert lcd.lines is not None
+    assert lcd.lines[1].startswith("OUTLIER")

@@ -5,10 +5,18 @@ import time
 
 from vibration_meter.collector import collect_second
 from vibration_meter.display import show
-from vibration_meter.errors import HINT_LCD_WRITE, HINT_SAMPLE, HardwareError, format_fail, format_ok
-from vibration_meter.hardware import open_display, open_sensor
+from vibration_meter.errors import (
+    HINT_BUZZ_WRITE,
+    HINT_LCD_WRITE,
+    HINT_SAMPLE,
+    HardwareError,
+    format_fail,
+    format_ok,
+)
+from vibration_meter.hardware import open_buzzer, open_display, open_sensor
 from vibration_meter.logutil import get_logger, setup_logging
 from vibration_meter.metrics import RmsHistory
+from vibration_meter.outlier import PersistTracker, mean_shift_ratio
 from vibration_meter.webapp import create_app, reading_payload
 
 
@@ -19,6 +27,8 @@ def publish_reading(
     socketio,
     samples: int = 1000,
     duration_s: float = 1.0,
+    buzzer=None,
+    tracker: PersistTracker | None = None,
 ) -> bool:
     log = get_logger()
     try:
@@ -26,7 +36,13 @@ def publish_reading(
     except Exception as exc:
         log.error(format_fail("SAMPLE", str(exc), HINT_SAMPLE), exc_info=True)
         return False
+    baseline = [point["rms_g"] for point in history.as_list()]
     history.push(time.time(), metrics.rms_g)
+    alert = False
+    if tracker is not None:
+        alert = tracker.update(mean_shift_ratio(metrics.rms_g, baseline))
+        if tracker.changed:
+            log.info(format_ok("ALERT", "on" if alert else "off"))
     log.info(
         format_ok(
             "SAMPLE",
@@ -35,17 +51,30 @@ def publish_reading(
     )
     if lcd is not None:
         try:
-            show(lcd, metrics.rms_g, metrics.peak_g, metrics.axis)
+            show(lcd, metrics.rms_g, metrics.peak_g, metrics.axis, alert=alert)
         except Exception as exc:
             log.error(format_fail("LCD_WRITE", str(exc), HINT_LCD_WRITE), exc_info=True)
+    if buzzer is not None:
+        try:
+            buzzer.set_alert(alert)
+        except Exception as exc:
+            log.error(format_fail("BUZZ_WRITE", str(exc), HINT_BUZZ_WRITE), exc_info=True)
     socketio.emit("reading", reading_payload(metrics, history))
     return True
 
 
-def measure_loop(sensor, lcd, socketio, stop: threading.Event) -> None:
+def measure_loop(sensor, lcd, socketio, stop: threading.Event, buzzer=None) -> None:
     history = RmsHistory(maxlen=60)
+    tracker = PersistTracker()
     while not stop.is_set():
-        publish_reading(sensor, lcd, history, socketio)
+        publish_reading(
+            sensor,
+            lcd,
+            history,
+            socketio,
+            buzzer=buzzer,
+            tracker=tracker,
+        )
 
 
 def main(argv: list[str] | None = None) -> None:
@@ -68,15 +97,18 @@ def main(argv: list[str] | None = None) -> None:
 
     if args.mock:
         lcd = None
+        buzzer = None
         log.info("[LCD_OPEN] skip (--mock)")
+        log.info("[BUZZ_OPEN] skip (--mock)")
     else:
         lcd = open_display()
+        buzzer = open_buzzer()
 
     app, socketio = create_app()
     stop = threading.Event()
     worker = threading.Thread(
         target=measure_loop,
-        args=(sensor, lcd, socketio, stop),
+        args=(sensor, lcd, socketio, stop, buzzer),
         daemon=True,
     )
     worker.start()

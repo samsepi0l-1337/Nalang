@@ -36,7 +36,9 @@ HINT_SPI_MISSING = (
     "/dev/spidev0.0 없음. raspi-config에서 SPI Enable 후 재부팅. "
     "ls -l /dev/spidev0.0. README Pi 절."
 )
-HINT_SPI_PERM = "sudo usermod -aG spi,i2c $USER 후 재로그인. README 로그 표."
+HINT_SPI_PERM = (
+    "sudo usermod -aG spi,i2c,gpio $USER 후 재로그인. README 로그 표."
+)
 HINT_SPIDEV_PKG = "Pi에서 pip install -r requirements-pi.txt (spidev). README Pi 절."
 HINT_LCD = (
     "i2cdetect -y 1 에 0x27 또는 0x3F가 있는지 확인. "
@@ -44,3 +46,9 @@ HINT_LCD = (
 )
 HINT_SAMPLE = "센서 SPI 배선·납땜과 DEVID 로그를 확인. README 배선 센서."
 HINT_LCD_WRITE = "I2C 커넥터·백팩 3.3V·주소 0x27/0x3F. README 배선 LCD."
+HINT_BUZZ = (
+    "패시브 KY-006: S→핀12(BCM 18), -→핀14 GND. "
+    "아두이노 tone(8)의 8은 D8이지 Pi 핀8(TXD)이 아니다. "
+    "KY-012 액티브는 쓰지 않는다. sudo usermod -aG gpio $USER. README 부저."
+)
+HINT_BUZZ_WRITE = "핀12 PWM·KY-006 S·패시브. README 부저."

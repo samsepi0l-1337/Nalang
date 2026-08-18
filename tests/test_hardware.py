@@ -3,7 +3,7 @@ import logging
 import pytest
 
 from vibration_meter.errors import HardwareError
-from vibration_meter.hardware import open_display, open_sensor, open_spi
+from vibration_meter.hardware import open_buzzer, open_display, open_sensor, open_spi
 
 
 def test_open_spi_missing_device_uses_spi_open_stage():
@@ -32,6 +32,17 @@ def test_open_display_logs_fail_and_returns_none(caplog):
     lcd = open_display(open_at=opener)
     assert lcd is None
     assert any("LCD_OPEN" in rec.message for rec in caplog.records)
+
+
+def test_open_buzzer_logs_fail_and_returns_none(caplog):
+    caplog.set_level(logging.ERROR)
+
+    def opener():
+        raise OSError("No such device")
+
+    buzzer = open_buzzer(create=opener)
+    assert buzzer is None
+    assert any("BUZZ_OPEN" in rec.message for rec in caplog.records)
 
 
 class BoomSpi:

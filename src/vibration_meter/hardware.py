@@ -1,9 +1,11 @@
 import math
 from collections.abc import Callable
+from typing import Protocol
 
 from vibration_meter.adxl355 import Adxl355, SpiDevice
 from vibration_meter.display import LcdDevice
 from vibration_meter.errors import (
+    HINT_BUZZ,
     HINT_LCD,
     HINT_SAMPLE,
     HINT_SPI_MISSING,
@@ -15,8 +17,17 @@ from vibration_meter.errors import (
 )
 from vibration_meter.logutil import get_logger
 
+
+class BuzzerDevice(Protocol):
+    def set_alert(self, on: bool) -> None: ...
+
+
 SpiFactory = Callable[[], SpiDevice]
 LcdFactory = Callable[[int], LcdDevice]
+BuzzerFactory = Callable[[], BuzzerDevice]
+
+BUZZER_BCM = 18
+TONE_HZ = 1000
 
 
 class MockSensor:
@@ -39,6 +50,22 @@ class RplcdAdapter:
         self._lcd.write_string(line1)
         self._lcd.cursor_pos = (1, 0)
         self._lcd.write_string(line2)
+
+
+class ToneBuzzer:
+    def __init__(self, device: object, tone: object) -> None:
+        self._device = device
+        self._tone = tone
+        self._on = False
+
+    def set_alert(self, on: bool) -> None:
+        if on == self._on:
+            return
+        self._on = on
+        if on:
+            self._device.play(self._tone)
+        else:
+            self._device.stop()
 
 
 def open_spi(create: SpiFactory | None = None) -> SpiDevice:
@@ -108,3 +135,23 @@ def open_display(open_at: LcdFactory | None = None) -> LcdDevice | None:
     if open_at is not None:
         log.info(format_ok("LCD_OPEN", "injected"))
     return lcd
+
+
+def open_buzzer(create: BuzzerFactory | None = None) -> BuzzerDevice | None:
+    log = get_logger()
+    try:
+        if create is None:
+            from gpiozero import TonalBuzzer
+            from gpiozero.tones import Tone
+
+            buzzer = ToneBuzzer(
+                TonalBuzzer(BUZZER_BCM),
+                Tone.from_frequency(TONE_HZ),
+            )
+        else:
+            buzzer = create()
+    except Exception as exc:
+        log.error(format_fail("BUZZ_OPEN", str(exc), HINT_BUZZ))
+        return None
+    log.info(format_ok("BUZZ_OPEN", f"BCM {BUZZER_BCM} {TONE_HZ}Hz tone()"))
+    return buzzer
