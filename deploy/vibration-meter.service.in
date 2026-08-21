@@ -4,12 +4,12 @@ After=network-online.target
 
 [Service]
 Type=simple
-WorkingDirectory=/home/pi/Nalang
-Environment=PYTHONPATH=/home/pi/Nalang/src
-ExecStart=/home/pi/Nalang/.venv/bin/python -m vibration_meter.app
+WorkingDirectory=@REPO_DIR@
+Environment=PYTHONPATH=@REPO_DIR@/src
+ExecStart=@REPO_DIR@/.venv/bin/python -m vibration_meter.app
 Restart=on-failure
 RestartSec=3
-User=pi
+User=@RUN_USER@
 StandardOutput=journal
 StandardError=journal
 SyslogIdentifier=vibration-meter
