@@ -35,7 +35,9 @@ def test_render_sets_working_directory_pythonpath_and_execstart():
 def test_render_sets_user_and_leaves_no_pi():
     rendered = render(TEMPLATE, REPO_DIR, RUN_USER)
     assert f"User={RUN_USER}" in rendered.splitlines()
-    assert "pi" not in rendered
+    # 부분문자열 pi 를 통째로 막으면 samsepiol 같은 경로에서 오탐이 난다.
+    assert "/home/pi" not in rendered
+    assert "User=pi" not in rendered
 
 
 def test_render_leaves_no_placeholders():

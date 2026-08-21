@@ -35,6 +35,11 @@ case "$REPO_DIR" in
 '*)
 	fail RENDER "REPO_DIR 에 개행이 있다" "sed 구분자와 충돌한다"
 	;;
+# systemd 는 ExecStart 와 Environment 를 공백으로 쪼갠다. 렌더는 되지만
+# 실행 파일이 첫 공백 앞에서 잘린다. 인용으로 살리는 대신 여기서 막는다.
+*' '*)
+	fail RENDER "REPO_DIR 에 공백이 있다" "공백 없는 경로에 클론한다"
+	;;
 esac
 
 case "$RUN_USER" in
@@ -45,6 +50,9 @@ case "$RUN_USER" in
 '*)
 	fail RENDER "RUN_USER 에 개행이 있다" "sed 구분자와 충돌한다"
 	;;
+*' '*)
+	fail RENDER "RUN_USER 에 공백이 있다" "User= 가 공백에서 잘린다"
+	;;
 esac
 
 if [ ! -x "$REPO_DIR/.venv/bin/python" ]; then
@@ -52,7 +60,11 @@ if [ ! -x "$REPO_DIR/.venv/bin/python" ]; then
 		"python3 -m venv \"$REPO_DIR/.venv\" && \"$REPO_DIR/.venv/bin/pip\" install -r \"$REPO_DIR/requirements-pi.txt\""
 fi
 
-user_groups=$(id -nG "$RUN_USER")
+# 없는 계정이면 id 가 1 로 끝나고 set -e 가 raw 에러로 죽인다. [STAGE] FAIL 로 바꾼다.
+if ! user_groups=$(id -nG "$RUN_USER" 2>/dev/null); then
+	fail USER "$RUN_USER 계정이 없다" \
+		"id -nG $RUN_USER 가 실패했다. RUN_USER 또는 SUDO_USER 를 확인한다"
+fi
 missing=
 for group in spi i2c gpio; do
 	if ! has_group "$user_groups" "$group"; then
