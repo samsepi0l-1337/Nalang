@@ -77,7 +77,7 @@ PYTHONPATH=src .venv/bin/python -m vibration_meter.app --mock
 
 1. Raspberry Pi OS 64-bit.
 2. `sudo raspi-config` → Interface Options에서 SPI, I2C Enable → 재부팅.
-3. 저장소 클론. 아래는 `/home/pi/Nalang` 기준. 경로가 다르면 systemd 파일도 맞춘다.
+3. 저장소 클론. 클론 경로는 아무 데나. 스크립트가 뽑는다.
 4. 그룹:
 
 ```
@@ -111,13 +111,12 @@ PYTHONPATH=src .venv/bin/python -m vibration_meter.app
 
 ## 자동 시작 (systemd)
 
-`deploy/vibration-meter.service`의 `WorkingDirectory`, `Environment=PYTHONPATH=…`, `ExecStart`를 클론 경로에 맞춘다. 기본값은 `/home/pi/Nalang`.
+유닛은 `deploy/vibration-meter.service.in` 템플릿이다. 사용자명·경로가 박혀 있지 않다.
+`scripts/install-service.sh`가 실행 계정과 저장소 위치에서 값을 뽑아 채운다. 손으로 고칠 줄이 없다.
+`sudo`로 스크립트를 부르지 않는다. 일반 계정으로 부르면 안에서 필요한 만큼만 `sudo`를 쓴다.
 
 ```
-sudo cp deploy/vibration-meter.service /etc/systemd/system/
-sudo systemctl daemon-reload
-sudo systemctl enable --now vibration-meter
-journalctl -u vibration-meter -f
+sh scripts/install-service.sh
 ```
 
 ## 로그로 배선 보기
@@ -130,6 +129,7 @@ journalctl -u vibration-meter -f
 | ---------------------------- | ------------------------------------------ |
 | `SPI_OPEN` spidev 없음       | raspi-config SPI, 재부팅                   |
 | `SPI_OPEN` Permission denied | `usermod -aG spi,i2c,gpio $USER` 후 재로그인 |
+| (저널 없음) 출력이 비어 있음 | `adm` 그룹 아님. `sudo journalctl` 또는 `sudo usermod -aG adm $USER` 후 재로그인 |
 | `SPI_OPEN` No module named spidev | `requirements-pi.txt`                 |
 | `SENSOR_ID` `0x00`           | MISO 핀21, CS 핀24, beginSPI               |
 | `SENSOR_ID` `0xFF`           | VCC 핀1, GND 핀25, 윗줄, 5 V 여부          |

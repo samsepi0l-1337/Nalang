@@ -91,7 +91,7 @@ Arduino `tone(8, 1000)` / `noTone(8)` 과 같다. `digitalWrite`만 하면 패�
 
 stderr. 형식: `[SENSOR_ID] FAIL DEVID_AD=0x00 expected=0xAD | HINT ...`
 
-`journalctl -u vibration-meter -f`. `--log-level INFO`. SAMPLE은 1초마다 OK.
+`journalctl -u vibration-meter -f`. 또는 `sh scripts/collect-logs.sh`. `--log-level INFO`. SAMPLE은 1초마다 OK.
 
 | 순서 | 코드         | OK 의미                     |
 | ---- | ------------ | --------------------------- |
@@ -115,7 +115,8 @@ stderr. 형식: `[SENSOR_ID] FAIL DEVID_AD=0x00 expected=0xAD | HINT ...`
 | 코드        | 대표 메시지            | 볼 곳                         |
 | ----------- | ---------------------- | ----------------------------- |
 | `SPI_OPEN`  | spidev 없음            | raspi-config SPI, 재부팅      |
-| `SPI_OPEN`  | Permission denied      | `usermod -aG spi,i2c,gpio`    |
+| `SPI_OPEN`  | Permission denied      | `usermod -aG spi,i2c,gpio $USER` |
+| (저널 없음) | 출력이 비어 있음       | `adm` 그룹 아님. `sudo journalctl` 또는 `usermod -aG adm $USER` |
 | `SPI_OPEN`  | No module named spidev | `requirements-pi.txt`         |
 | `SENSOR_ID` | `DEVID_AD=0x00`        | MISO 핀21, CS 핀24, beginSPI  |
 | `SENSOR_ID` | `DEVID_AD=0xFF`        | VCC 핀1, GND 핀25, 윗줄, 5 V  |
@@ -158,11 +159,7 @@ sudo i2cdetect -y 1
 또는 `0x3F`면 LCD 버스는 된 것.
 
 ```
-sudo cp deploy/vibration-meter.service /etc/systemd/system/
-sudo systemctl daemon-reload
-sudo systemctl enable --now vibration-meter
-journalctl -u vibration-meter -f
+sh scripts/install-service.sh
 ```
 
-`WorkingDirectory`와 `ExecStart`를 클론 경로에 맞춘다. 폰:
-`http://<pi-ip>:5000`.
+폰: `http://<pi-ip>:5000`.
