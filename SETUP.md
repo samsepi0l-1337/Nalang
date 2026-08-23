@@ -55,7 +55,7 @@ KY-012 액티브 금지. `+`/가운데를 5 V에 넣지 않는다.
 
 ```
 sudo systemctl stop vibration-meter
-.venv/bin/python -m vibration_meter.buzzer_diag
+PYTHONPATH=src .venv/bin/python -m vibration_meter.buzzer_diag
 sudo systemctl start vibration-meter
 ```
 
@@ -147,6 +147,7 @@ sh scripts/install-service.sh
 | `LCD_OPEN`                   | 백팩 3.3 V 핀17, SDA 핀3, SCL 핀5          |
 | `BUZZ_OPEN`                  | 핀12 BCM18, KY-006 S, D8는 Pi 핀8이 아님   |
 | `BUZZ_OPEN` already in use   | 서비스가 BCM18 점유. `sudo systemctl stop vibration-meter`. 배선 아님 |
+| `BUZZ_WRITE` 음역 밖         | `TonalBuzzer` 옥타브. 기본 1옥타브는 880 Hz 까지라 1 kHz 를 못 낸다 |
 | `RATE` 창이 밀린다           | 읽기가 창보다 느리다. `--interval`을 늘린다. 배선 아님 |
 | `LCD_WRITE`                  | I2C 커넥터 헐거움                          |
 | `BUZZ_WRITE`                 | 핀12 PWM, 패시브, GND 핀14                 |

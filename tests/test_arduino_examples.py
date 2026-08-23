@@ -1,5 +1,13 @@
+import pytest
+
 from vibration_meter.adxl355 import DEVID_AD, EXPECTED_DEVID_AD, spi_command
-from vibration_meter.hardware import BUZZER_BCM, TONE_HZ
+from vibration_meter.buzzer_diag import SWEEP_HZ
+from vibration_meter.hardware import (
+    BUZZER_BCM,
+    BUZZER_OCTAVES,
+    TONE_HZ,
+    tone_range_hz,
+)
 from vibration_meter.outlier import PERSIST_S, SHARP_RATIO, SOFT_RATIO
 
 
@@ -11,6 +19,24 @@ def test_device_info_matches_pl_adxl355_vendor_id():
 def test_buzzer_is_bcm18_1khz_like_tone():
     assert BUZZER_BCM == 18
     assert TONE_HZ == 1000
+
+
+def test_default_tonalbuzzer_octave_cannot_reach_the_alert_tone():
+    # gpiozero 기본값은 A4/1옥타브라 220~880 Hz 다. 1 kHz 경보음이 범위 밖이라
+    # 배선이 멀쩡해도 play() 가 거절한다. 이 한 줄이 그 회귀를 막는다.
+    low, high = tone_range_hz(octaves=1)
+    assert (low, high) == (220, 880)
+    assert TONE_HZ > high
+
+
+@pytest.mark.parametrize("hz", (TONE_HZ, *SWEEP_HZ))
+def test_configured_octave_covers_every_tone_we_play(hz):
+    low, high = tone_range_hz()
+    assert low <= hz <= high, f"{hz} Hz 가 {low}~{high} Hz 밖이다"
+
+
+def test_buzzer_octaves_is_pinned():
+    assert BUZZER_OCTAVES == 2
 
 
 def test_alert_thresholds_match_readme_rule():

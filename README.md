@@ -70,7 +70,7 @@ Arduino `tone(8, 1000)` / `noTone(8)` 과 같다. `digitalWrite`만 하면 패�
 
 ```
 sudo systemctl stop vibration-meter
-.venv/bin/python -m vibration_meter.buzzer_diag
+PYTHONPATH=src .venv/bin/python -m vibration_meter.buzzer_diag
 sudo systemctl start vibration-meter
 ```
 
@@ -79,11 +79,14 @@ sudo systemctl start vibration-meter
 | 들린 것 | 원인 | 볼 곳 |
 | ------- | ---- | ----- |
 | `[BUZZ_OPEN] FAIL` | 코드·권한·점유. **배선이 아니다** | 서비스 정지, `pip install -r requirements-pi.txt`, `usermod -aG gpio $USER` |
+| `[BUZZ_WRITE] FAIL` | 열린 뒤 PWM 거절 | 음역(`BUZZ_OPEN` 줄에 찍힌다) 밖 주파수이거나 핀12 PWM 충돌 |
 | 열렸는데 무음 | 배선 | S↔핀12(BCM 18), −↔핀14, 점퍼 접촉 |
 | 소리는 나되 음정 불변 | 부품 | KY-012 액티브다. KY-006 패시브로 바꾼다 |
 | 음정이 3단 올라감 | 배선·코드 정상 | 앱에서만 안 울리면 이상치 판정 쪽(`ALERT` 로그) |
 
 `--mock`은 부저를 열지 않으므로 이 진단으로만 확인된다.
+
+`TonalBuzzer`는 `mid_tone` 기준 ±`octaves`만 낸다. gpiozero 기본값 A4·1옥타브는 **220~880 Hz**라 1 kHz 경보음이 범위 밖이다. 그래서 2옥타브(110~1760 Hz)로 연다. 음역은 `BUZZ_OPEN` 로그에 찍힌다.
 
 ### 납땜
 
@@ -96,7 +99,7 @@ sudo systemctl start vibration-meter
 
 전원 넣기 전 연속성: 센서 VCC↔핀1, GND↔핀25, SCK/MOSI/MISO/CS↔표의 핀. **핀1과 핀25가 통하면 숏.** LCD VCC↔17, GND↔6, SDA↔3, SCL↔5. LCD VCC와 5 V(핀2)는 통하면 안 된다. 부저 S↔핀12, −↔핀14. 부저 S와 5 V(핀2)는 통하면 안 된다.
 
-문제 보고 시: 센서 전면, 아랫줄(MISO/MOSI/CS) 확대, Pi 점퍼 전체, LCD 백팩 VCC가 어느 핀인지, 부저 S가 핀 12인지, 로그 `[STAGE] FAIL` 한 줄. 부저 건이면 `python -m vibration_meter.buzzer_diag` 출력 전체와 **실제로 들린 소리**를 같이 보낸다. 로그만으로는 2번과 4번을 가를 수 없다.
+문제 보고 시: 센서 전면, 아랫줄(MISO/MOSI/CS) 확대, Pi 점퍼 전체, LCD 백팩 VCC가 어느 핀인지, 부저 S가 핀 12인지, 로그 `[STAGE] FAIL` 한 줄. 부저 건이면 `PYTHONPATH=src .venv/bin/python -m vibration_meter.buzzer_diag` 출력 전체와 **실제로 들린 소리**를 같이 보낸다. 로그만으로는 2번과 4번을 가를 수 없다.
 
 ## 측정
 

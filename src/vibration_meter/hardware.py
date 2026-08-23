@@ -38,6 +38,20 @@ ToneFactory = Callable[[float], object]
 BUZZER_BCM = 18
 TONE_HZ = 1000
 
+# TonalBuzzer 는 mid_tone 을 중심으로 ±octaves 만 낸다. 기본값 A4(440 Hz)/1
+# 옥타브면 220~880 Hz 라서 1 kHz 경보음이 아예 범위 밖이다. 2 옥타브로
+# 110~1760 Hz 를 확보한다.
+MID_TONE_HZ = 440
+BUZZER_OCTAVES = 2
+
+
+def tone_range_hz(
+    mid_hz: float = MID_TONE_HZ, octaves: int = BUZZER_OCTAVES
+) -> tuple[float, float]:
+    """이 설정으로 실제로 낼 수 있는 주파수 구간."""
+    span = 2**octaves
+    return (mid_hz / span, mid_hz * span)
+
 
 class MockSensor:
     def __init__(self, dt: float = 0.001) -> None:
@@ -172,11 +186,20 @@ def open_buzzer(create: BuzzerFactory | None = None) -> BuzzerDevice | None:
             from gpiozero import TonalBuzzer
             from gpiozero.tones import Tone
 
-            buzzer = ToneBuzzer(TonalBuzzer(BUZZER_BCM), Tone.from_frequency)
+            buzzer = ToneBuzzer(
+                TonalBuzzer(BUZZER_BCM, octaves=BUZZER_OCTAVES),
+                Tone.from_frequency,
+            )
         else:
             buzzer = create()
     except Exception as exc:
         log.error(format_fail("BUZZ_OPEN", str(exc), buzz_open_hint(exc)))
         return None
-    log.info(format_ok("BUZZ_OPEN", f"BCM {BUZZER_BCM} {TONE_HZ}Hz tone()"))
+    low, high = tone_range_hz()
+    log.info(
+        format_ok(
+            "BUZZ_OPEN",
+            f"BCM {BUZZER_BCM} {TONE_HZ}Hz tone() 음역 {low:.0f}~{high:.0f}Hz",
+        )
+    )
     return buzzer
