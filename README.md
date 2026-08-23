@@ -64,6 +64,27 @@ Arduino `tone(8, 1000)` / `noTone(8)` 과 같다. `digitalWrite`만 하면 패�
 
 빠지면 로그 `BUZZ_OPEN` / `BUZZ_WRITE`. 실패해도 웹·LCD는 계속한다.
 
+### 부저가 안 울릴 때 (배선인지 코드인지)
+
+서비스가 BCM 18을 쥐고 있으면 진단이 열리지 않는다. **먼저 멈춘다.**
+
+```
+sudo systemctl stop vibration-meter
+.venv/bin/python -m vibration_meter.buzzer_diag
+sudo systemctl start vibration-meter
+```
+
+262 → 523 → 1047 Hz를 0.6초씩 울린 뒤, 앱 경보와 **같은** `set_alert` 경로로 1 kHz를 세 번 끊어 낸다. 들린 소리를 로그와 맞춘다.
+
+| 들린 것 | 원인 | 볼 곳 |
+| ------- | ---- | ----- |
+| `[BUZZ_OPEN] FAIL` | 코드·권한·점유. **배선이 아니다** | 서비스 정지, `pip install -r requirements-pi.txt`, `usermod -aG gpio $USER` |
+| 열렸는데 무음 | 배선 | S↔핀12(BCM 18), −↔핀14, 점퍼 접촉 |
+| 소리는 나되 음정 불변 | 부품 | KY-012 액티브다. KY-006 패시브로 바꾼다 |
+| 음정이 3단 올라감 | 배선·코드 정상 | 앱에서만 안 울리면 이상치 판정 쪽(`ALERT` 로그) |
+
+`--mock`은 부저를 열지 않으므로 이 진단으로만 확인된다.
+
 ### 납땜
 
 - 헤더는 전면 실크가 보이게. 아랫줄 5홀에도 헤더 또는 전선.
@@ -75,14 +96,17 @@ Arduino `tone(8, 1000)` / `noTone(8)` 과 같다. `digitalWrite`만 하면 패�
 
 전원 넣기 전 연속성: 센서 VCC↔핀1, GND↔핀25, SCK/MOSI/MISO/CS↔표의 핀. **핀1과 핀25가 통하면 숏.** LCD VCC↔17, GND↔6, SDA↔3, SCL↔5. LCD VCC와 5 V(핀2)는 통하면 안 된다. 부저 S↔핀12, −↔핀14. 부저 S와 5 V(핀2)는 통하면 안 된다.
 
-문제 보고 시: 센서 전면, 아랫줄(MISO/MOSI/CS) 확대, Pi 점퍼 전체, LCD 백팩 VCC가 어느 핀인지, 부저 S가 핀 12인지, 로그 `[STAGE] FAIL` 한 줄.
+문제 보고 시: 센서 전면, 아랫줄(MISO/MOSI/CS) 확대, Pi 점퍼 전체, LCD 백팩 VCC가 어느 핀인지, 부저 S가 핀 12인지, 로그 `[STAGE] FAIL` 한 줄. 부저 건이면 `python -m vibration_meter.buzzer_diag` 출력 전체와 **실제로 들린 소리**를 같이 보낸다. 로그만으로는 2번과 4번을 가를 수 없다.
 
 ## 측정
 
-- ODR 1000 Hz, ±8.192 g. 1초 창에서 축별 평균(중력 DC)을 뺀 뒤 RMS·피크.
+- ODR 1000 Hz, ±8.192 g. 창 하나에서 축별 평균(중력 DC)을 뺀 뒤 RMS·피크.
 - 축: 그 창에서 AC RMS가 가장 큰 축. 동점이면 X→Y→Z.
-- 1602 1초 갱신: `RMS 0.123 g` / `PK  0.456 g X` (각 16자).
+- **갱신 주기 = 창 길이.** 기본 0.2초(초당 5회). `--interval`로 바꾼다. 표본 수는 ODR × 창이라 0.2초면 200개다.
+- 최소 0.1초. 그보다 짧으면 20 Hz 진동이 창에 두 주기도 안 들어가 RMS가 요동친다. 짧게 주면 `[BOOT] FAIL`로 막고 종료 코드 2.
+- 1602는 최대 0.5초에 한 번만 쓴다. I2C로 32자 미는 데 수십 ms가 들어 매 창 쓰면 측정 시간을 갉아먹는다. **이상치 전환은 이 제한을 무시하고 즉시 뜬다.**
 - 이상치 표시: 직전 창 RMS 평균 대비 |Δ|≥5%가 **연속 5초**, 또는 |Δ|≥10%로 **급변**. 기준 10초 미만은 판정하지 않음. 걸리면 2행 `OUTLIER        X`, 패시브 부저 1 kHz (`tone()`).
+- 위 5초·10초·60초는 **초**다. 창 길이가 바뀌면 창 개수로 환산한다(0.2초 창이면 연속 25창). 갱신을 빨리해도 판정 기준은 그대로다.
 - 폰: 포트 5000, 최근 60초 RMS 그래프. 원시 파형은 보내지 않는다.
 
 스택: Python 3, `spidev`, `RPLCD`+`smbus2`, `gpiozero` `TonalBuzzer`, `numpy`, `Flask`+`Flask-SocketIO` (threading), Chart.js CDN. SPI `/dev/spidev0.0` 1 MHz mode 0. DEVID_AD=`0xAD`, RANGE=`0x83`, FILTER=`0x02`, POWER_CTL=`0x00`. 부저 BCM 18, 1000 Hz.
@@ -91,7 +115,7 @@ Arduino `tone(8, 1000)` / `noTone(8)` 과 같다. `digitalWrite`만 하면 패�
 
 stderr. 형식: `[SENSOR_ID] FAIL DEVID_AD=0x00 expected=0xAD | HINT ...`
 
-`journalctl -u vibration-meter -f`. 또는 `sh scripts/collect-logs.sh`. `--log-level INFO`. SAMPLE은 1초마다 OK.
+`journalctl -u vibration-meter -f`. 또는 `sh scripts/collect-logs.sh`. `--log-level INFO`. SAMPLE은 창마다 OK(기본 0.2초).
 
 | 순서 | 코드         | OK 의미                     |
 | ---- | ------------ | --------------------------- |
@@ -105,10 +129,12 @@ stderr. 형식: `[SENSOR_ID] FAIL DEVID_AD=0x00 expected=0xAD | HINT ...`
 | 8    | `BUZZ_OPEN`  | 핀12 PWM. 실패해도 웹 계속  |
 | 9    | `LOOP`       | 측정 스레드                 |
 | 10   | `WEB_BIND`   | 포트 5000                   |
-| 11   | `SAMPLE`     | 1초 RMS 성공                |
+| 11   | `SAMPLE`     | 창 하나 RMS 성공            |
 | 12   | `ALERT`      | 지속 이상치 on/off          |
 | 13   | `LCD_WRITE`  | 1602 갱신. 실패해도 웹 계속 |
 | 14   | `BUZZ_WRITE` | 부저. 실패해도 웹 계속      |
+
+`RATE`는 부팅 때 창·표본·판정 창수를 한 줄로 남긴다. 읽기가 창보다 오래 걸리면 `[RATE] FAIL`, 따라잡으면 `[RATE] OK`. 상태가 바뀔 때만 남기므로 매 창 뜨지 않는다.
 
 `SPI_OPEN` / `SENSOR_ID` 실패는 종료 코드 2. LCD·부저 실패는 종료하지 않는다.
 

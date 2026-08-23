@@ -3,7 +3,7 @@
 Raspberry Pi Zero 2 W 한 대, 기존 Wi-Fi. 센서 ADXL355B(SPI) + I2C 1602.
 사양·핀 표의 원본은 `README.md`.
 
-벨트/윤활 판정, FFT, 저장, AP는 하지 않는다. 평균 대비 5% 연속 5초 또는 10% 급변이면 1602 `OUTLIER`와 패시브 부저.
+벨트/윤활 판정, FFT, 저장, AP는 하지 않는다. 평균 대비 5% 연속 5초 또는 10% 급변이면 1602 `OUTLIER`와 패시브 부저. 갱신은 기본 0.2초(초당 5회), `--interval`로 바꾼다.
 
 ## 전원·핀 (먼저)
 
@@ -50,6 +50,16 @@ Arduino `tone(8, 1000)`과 같다. 예제 `8`은 D8이지 Pi 핀 8(TXD)이 아�
 | −      | GND      | 14    | GND  |
 
 KY-012 액티브 금지. `+`/가운데를 5 V에 넣지 않는다.
+
+부저가 안 울리면 배선인지 코드인지부터 가른다. 서비스가 BCM 18을 쥐고 있으니 먼저 멈춘다.
+
+```
+sudo systemctl stop vibration-meter
+.venv/bin/python -m vibration_meter.buzzer_diag
+sudo systemctl start vibration-meter
+```
+
+`[BUZZ_OPEN] FAIL`이면 코드·권한·점유이고 배선이 아니다. 열렸는데 무음이면 배선, 소리는 나되 음정이 안 변하면 KY-012 액티브다. 판정표는 진단이 직접 찍는다. README 「부저가 안 울릴 때」.
 
 ### 납땜·연속성
 
@@ -136,6 +146,8 @@ sh scripts/install-service.sh
 | `SENSOR_ID` 그 외 ID         | MOSI/MISO 교차, CL-SCL/DA-SDA 연결         |
 | `LCD_OPEN`                   | 백팩 3.3 V 핀17, SDA 핀3, SCL 핀5          |
 | `BUZZ_OPEN`                  | 핀12 BCM18, KY-006 S, D8는 Pi 핀8이 아님   |
+| `BUZZ_OPEN` already in use   | 서비스가 BCM18 점유. `sudo systemctl stop vibration-meter`. 배선 아님 |
+| `RATE` 창이 밀린다           | 읽기가 창보다 느리다. `--interval`을 늘린다. 배선 아님 |
 | `LCD_WRITE`                  | I2C 커넥터 헐거움                          |
 | `BUZZ_WRITE`                 | 핀12 PWM, 패시브, GND 핀14                 |
 | `SAMPLE` bus nak             | 측정 중 SPI 단선                           |

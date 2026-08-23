@@ -6,6 +6,7 @@ from vibration_meter.adxl355 import Adxl355, SpiDevice
 from vibration_meter.display import LcdDevice
 from vibration_meter.errors import (
     HINT_BUZZ,
+    HINT_BUZZ_BUSY,
     HINT_LCD,
     HINT_SAMPLE,
     HINT_SPI_MISSING,
@@ -22,9 +23,17 @@ class BuzzerDevice(Protocol):
     def set_alert(self, on: bool) -> None: ...
 
 
+class ToneCapableBuzzer(BuzzerDevice, Protocol):
+    """진단이 요구하는 확장. 앱은 set_alert 만 쓴다."""
+
+    def play_hz(self, hz: float) -> None: ...
+    def stop(self) -> None: ...
+
+
 SpiFactory = Callable[[], SpiDevice]
 LcdFactory = Callable[[int], LcdDevice]
 BuzzerFactory = Callable[[], BuzzerDevice]
+ToneFactory = Callable[[float], object]
 
 BUZZER_BCM = 18
 TONE_HZ = 1000
@@ -53,9 +62,12 @@ class RplcdAdapter:
 
 
 class ToneBuzzer:
-    def __init__(self, device: object, tone: object) -> None:
+    def __init__(
+        self, device: object, tone_for: ToneFactory, alert_hz: float = TONE_HZ
+    ) -> None:
         self._device = device
-        self._tone = tone
+        self._tone_for = tone_for
+        self._alert_hz = alert_hz
         self._on = False
 
     def set_alert(self, on: bool) -> None:
@@ -63,9 +75,18 @@ class ToneBuzzer:
             return
         self._on = on
         if on:
-            self._device.play(self._tone)
+            self._device.play(self._tone_for(self._alert_hz))
         else:
             self._device.stop()
+
+    def play_hz(self, hz: float) -> None:
+        """진단용. 음정을 바꿔 패시브(KY-006)와 액티브(KY-012)를 가른다."""
+        self._on = True
+        self._device.play(self._tone_for(hz))
+
+    def stop(self) -> None:
+        self._on = False
+        self._device.stop()
 
 
 def open_spi(create: SpiFactory | None = None) -> SpiDevice:
@@ -137,6 +158,13 @@ def open_display(open_at: LcdFactory | None = None) -> LcdDevice | None:
     return lcd
 
 
+def buzz_open_hint(exc: Exception) -> str:
+    """핀 점유는 배선 문제로 읽히기 쉽다. 서비스가 도는 중이라는 뜻이다."""
+    if type(exc).__name__ == "GPIOPinInUse" or "in use" in str(exc).lower():
+        return HINT_BUZZ_BUSY
+    return HINT_BUZZ
+
+
 def open_buzzer(create: BuzzerFactory | None = None) -> BuzzerDevice | None:
     log = get_logger()
     try:
@@ -144,14 +172,11 @@ def open_buzzer(create: BuzzerFactory | None = None) -> BuzzerDevice | None:
             from gpiozero import TonalBuzzer
             from gpiozero.tones import Tone
 
-            buzzer = ToneBuzzer(
-                TonalBuzzer(BUZZER_BCM),
-                Tone.from_frequency(TONE_HZ),
-            )
+            buzzer = ToneBuzzer(TonalBuzzer(BUZZER_BCM), Tone.from_frequency)
         else:
             buzzer = create()
     except Exception as exc:
-        log.error(format_fail("BUZZ_OPEN", str(exc), HINT_BUZZ))
+        log.error(format_fail("BUZZ_OPEN", str(exc), buzz_open_hint(exc)))
         return None
     log.info(format_ok("BUZZ_OPEN", f"BCM {BUZZER_BCM} {TONE_HZ}Hz tone()"))
     return buzzer

@@ -52,3 +52,11 @@ HINT_BUZZ = (
     "KY-012 액티브는 쓰지 않는다. sudo usermod -aG gpio $USER. README 부저."
 )
 HINT_BUZZ_WRITE = "핀12 PWM·KY-006 S·패시브. README 부저."
+HINT_RATE = (
+    "표본 읽기가 창보다 오래 걸린다. --interval 을 늘려 창을 길게 잡는다. "
+    "README 갱신 주기."
+)
+HINT_BUZZ_BUSY = (
+    "BCM 18 을 이미 다른 프로세스가 쥐고 있다. 서비스가 도는 중이면 "
+    "sudo systemctl stop vibration-meter 후 다시 실행한다."
+)

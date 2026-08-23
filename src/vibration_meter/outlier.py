@@ -1,13 +1,28 @@
 import numpy as np
 
-MIN_BASELINE = 10
+# 아래 둘은 창 개수가 아니라 초다. 창이 1초일 때만 두 값이 같았다.
+# 창을 짧게 만들면 windows_for 로 환산해야 판정 기준이 그대로 남는다.
+BASELINE_S = 10
 PERSIST_S = 5
 SOFT_RATIO = 0.05
 SHARP_RATIO = 0.10
 
+# 초를 개수로 바꾸는 기준 창. 예전 1초 창의 값이 그대로 나오게 하는 앵커다.
+REFERENCE_WINDOW_S = 1.0
 
-def mean_shift_ratio(rms_g: float, baseline: list[float]) -> float | None:
-    if len(baseline) < MIN_BASELINE:
+
+def windows_for(seconds: float, window_s: float) -> int:
+    """초 단위 기준을 창 개수로 바꾼다. 창이 짧아져도 시간 기준은 유지된다."""
+    return max(1, round(seconds / window_s))
+
+
+MIN_BASELINE = windows_for(BASELINE_S, REFERENCE_WINDOW_S)
+
+
+def mean_shift_ratio(
+    rms_g: float, baseline: list[float], min_count: int = MIN_BASELINE
+) -> float | None:
+    if len(baseline) < min_count:
         return None
     mean = float(np.mean(baseline))
     if mean <= 1e-9:
