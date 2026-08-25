@@ -73,3 +73,18 @@ def test_read_xyz_g_one_g_on_z():
     assert abs(x) < 1e-6
     assert abs(y) < 1e-6
     assert abs(z - 1.0) < 1e-6
+
+
+def test_begin_write_failure_is_sensor_cfg_not_sensor_id():
+    # ID 읽기는 됐는데 설정 쓰기가 깨진 경우다. 단계를 뭉개면 로그만 보고
+    # 둘을 가를 수 없다. README 로그 표도 4번과 5번을 나눠 둔다.
+    class WriteFailsSpi(FakeSpi):
+        def xfer2(self, data: list[int]) -> list[int]:
+            if not data[0] & 1:
+                raise OSError("spi write nak")
+            return super().xfer2(data)
+
+    with pytest.raises(Adxl355Error) as caught:
+        Adxl355(WriteFailsSpi()).begin()
+    assert caught.value.stage == "SENSOR_CFG"
+    assert "spi write nak" in str(caught.value)

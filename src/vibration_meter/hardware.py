@@ -123,6 +123,8 @@ def open_spi(create: SpiFactory | None = None) -> SpiDevice:
         raise HardwareError("SPI_OPEN", str(exc), HINT_SPI_PERM) from exc
     except ModuleNotFoundError as exc:
         raise HardwareError("SPI_OPEN", str(exc), HINT_SPIDEV_PKG) from exc
+    except OSError as exc:
+        raise HardwareError("SPI_OPEN", str(exc), HINT_SPI_MISSING) from exc
     log.info(format_ok("SPI_OPEN", "/dev/spidev0.0 1MHz mode0"))
     return spi
 
@@ -131,11 +133,11 @@ def open_lcd(address: int = 0x27) -> LcdDevice:
     from RPLCD.i2c import CharLCD
 
     log = get_logger()
-    log.info("[LCD_ADDR] trying 0x%02X", address)
+    log.info(format_ok("LCD_ADDR", f"trying 0x{address:02X}"))
     try:
         lcd = RplcdAdapter(CharLCD("PCF8574", address))
     except Exception as exc:
-        log.warning("[LCD_ADDR] FAIL address=0x%02X %s", address, exc)
+        log.warning(format_fail("LCD_ADDR", f"address=0x{address:02X} {exc}", HINT_LCD))
         if address != 0x3F:
             return open_lcd(0x3F)
         raise HardwareError("LCD_OPEN", str(exc), HINT_LCD) from exc

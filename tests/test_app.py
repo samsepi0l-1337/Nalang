@@ -8,9 +8,11 @@ from vibration_meter.app import (
     MIN_INTERVAL_S,
     MeasureConfig,
     RateWatch,
+    check_web_bind,
     main,
     publish_reading,
 )
+from vibration_meter.errors import HardwareError
 from vibration_meter.adxl355 import ODR_HZ
 from vibration_meter.display import UpdateThrottle
 from vibration_meter.metrics import RmsHistory
@@ -249,3 +251,36 @@ def test_rate_watch_logs_once_on_entry_and_once_on_recovery(caplog):
     recovered = [r for r in caplog.records if "[RATE] OK" in r.message]
     assert len(fails) == 1
     assert len(recovered) == 1
+
+
+def test_check_web_bind_fails_when_port_in_use():
+    # 포트가 물려 있으면 socketio.run 이 raw 트레이스백으로 죽는다.
+    # [WEB_BIND] FAIL 한 줄로 바꿔야 README 로그 표와 맞는다.
+    import socket as socket_mod
+
+    holder = socket_mod.socket(socket_mod.AF_INET, socket_mod.SOCK_STREAM)
+    holder.bind(("127.0.0.1", 0))
+    holder.listen(1)
+    port = holder.getsockname()[1]
+    try:
+        with pytest.raises(HardwareError) as caught:
+            check_web_bind("127.0.0.1", port)
+        assert caught.value.stage == "WEB_BIND"
+        assert "배선" in caught.value.hint
+    finally:
+        holder.close()
+
+
+def test_check_web_bind_passes_on_free_port():
+    check_web_bind("127.0.0.1", 0)
+
+
+def test_publish_reading_logs_lcd_write_ok(caplog):
+    # README 로그 표 13번은 LCD_WRITE 의 OK 의미를 "1602 갱신"이라고 적어 둔다.
+    caplog.set_level(logging.INFO)
+    lcd = FakeLcd()
+    publish_reading(
+        SequenceSensor(), lcd, RmsHistory(maxlen=60), FakeSocket(), samples=4
+    )
+    assert lcd.updates == 1
+    assert any("[LCD_WRITE] OK" in rec.message for rec in caplog.records)

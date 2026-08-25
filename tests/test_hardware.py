@@ -1,4 +1,6 @@
 import logging
+import sys
+import types
 
 import pytest
 
@@ -7,6 +9,7 @@ from vibration_meter.hardware import (
     buzz_open_hint,
     open_buzzer,
     open_display,
+    open_lcd,
     open_sensor,
     open_spi,
 )
@@ -86,3 +89,58 @@ def test_open_buzzer_busy_hint_reaches_the_log(caplog):
 
     assert open_buzzer(create=busy) is None
     assert any("systemctl stop" in rec.message for rec in caplog.records)
+
+
+def test_open_spi_oserror_is_spi_open():
+    # FileNotFoundError/PermissionError 만 잡으면 EIO·EBUSY 가 raw 로 샌다.
+    def create():
+        raise OSError("EIO")
+
+    with pytest.raises(HardwareError) as caught:
+        open_spi(create=create)
+    assert caught.value.stage == "SPI_OPEN"
+    assert "EIO" in str(caught.value)
+
+
+def test_open_spi_uses_bus0_ce0_1mhz_mode0(monkeypatch, caplog):
+    # README 배선 표가 CS=핀24(CE0)라고 못박는다. 버스/속도/모드를 고정한다.
+    caplog.set_level(logging.INFO)
+
+    class FakeSpiDev:
+        def __init__(self) -> None:
+            self.bus = None
+            self.device = None
+            self.max_speed_hz = 0
+            self.mode = -1
+
+        def open(self, bus: int, device: int) -> None:
+            self.bus = bus
+            self.device = device
+
+    fake = FakeSpiDev()
+    monkeypatch.setitem(
+        sys.modules, "spidev", types.SimpleNamespace(SpiDev=lambda: fake)
+    )
+    spi = open_spi()
+    assert spi is fake
+    assert (fake.bus, fake.device) == (0, 0)
+    assert fake.max_speed_hz == 1_000_000
+    assert fake.mode == 0
+
+
+def test_open_lcd_falls_back_from_0x27_to_0x3f(monkeypatch):
+    # 백팩은 0x27 아니면 0x3F 다. 한쪽만 보고 포기하면 멀쩡한 LCD 를 놓친다.
+    tried: list[int] = []
+
+    class SelectiveLcd:
+        def __init__(self, _interface: str, address: int) -> None:
+            tried.append(address)
+            if address == 0x27:
+                raise OSError("missing")
+
+    fake_i2c = types.SimpleNamespace(CharLCD=SelectiveLcd)
+    monkeypatch.setitem(sys.modules, "RPLCD", types.SimpleNamespace(i2c=fake_i2c))
+    monkeypatch.setitem(sys.modules, "RPLCD.i2c", fake_i2c)
+    lcd = open_lcd(0x27)
+    assert tried == [0x27, 0x3F]
+    assert lcd is not None

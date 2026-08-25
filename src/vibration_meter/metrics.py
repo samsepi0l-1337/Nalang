@@ -35,11 +35,15 @@ def window_metrics(x, y, z) -> WindowMetrics:
 
 
 class RmsHistory:
-    def __init__(self, maxlen: int = 60) -> None:
+    def __init__(self, maxlen: int = 60, window_s: float = 60.0) -> None:
         self._points: deque[dict[str, float]] = deque(maxlen=maxlen)
+        self._window_s = window_s
 
     def push(self, t: float, rms_g: float) -> None:
         self._points.append({"t": t, "rms_g": rms_g})
+        cutoff = t - self._window_s
+        while self._points and self._points[0]["t"] < cutoff:
+            self._points.popleft()
 
     def as_list(self) -> list[dict[str, float]]:
         return list(self._points)

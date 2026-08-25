@@ -60,3 +60,8 @@ HINT_BUZZ_BUSY = (
     "BCM 18 을 이미 다른 프로세스가 쥐고 있다. 서비스가 도는 중이면 "
     "sudo systemctl stop vibration-meter 후 다시 실행한다."
 )
+HINT_WEB_BIND = (
+    "그 포트를 이미 다른 프로세스가 쥐고 있다. 배선이 아니다. "
+    "서비스가 도는 중이면 sudo systemctl stop vibration-meter, "
+    "또는 --port 로 다른 포트를 준다. 기본 포트는 5000. README 로그 표."
+)

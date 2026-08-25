@@ -1,7 +1,7 @@
 from typing import Protocol
 
 from vibration_meter.convert import SCALE_8G, bytes_to_raw20, raw20_to_g
-from vibration_meter.errors import HardwareError, format_ok, hint_for_devid
+from vibration_meter.errors import HINT_SAMPLE, HardwareError, format_ok, hint_for_devid
 from vibration_meter.logutil import get_logger
 
 DEVID_AD = 0x00
@@ -49,9 +49,16 @@ class Adxl355:
                 hint_for_devid(device_id),
             )
         log.info(format_ok("SENSOR_ID", "DEVID_AD=0xAD"))
-        self.set_range_8g()
-        self.set_odr_1000hz()
-        self.enable_measurement()
+        # 설정 쓰기가 실패하면 SENSOR_ID 가 아니라 SENSOR_CFG 다. 단계를 뭉개면
+        # 로그만 보고 ID 읽기와 설정 쓰기를 가를 수 없다.
+        try:
+            self.set_range_8g()
+            self.set_odr_1000hz()
+            self.enable_measurement()
+        except HardwareError:
+            raise
+        except Exception as exc:
+            raise Adxl355Error("SENSOR_CFG", str(exc), HINT_SAMPLE) from exc
         log.info(
             format_ok(
                 "SENSOR_CFG",
