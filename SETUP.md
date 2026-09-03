@@ -45,13 +45,13 @@ Arduino `tone(8, 1000)`과 같다. 예제 `8`은 D8이지 Pi 핀 8(TXD)이 아�
 
 | KY-006 | 아두이노 | Pi 핀 | 신호 |
 | ------ | -------- | ----- | ---- |
-| S      | D8       | 12    | PWM (BCM 18) |
+| S      | D8       | 32    | PWM (BCM 12) |
 | 가운데 | NC       | NC    | 비움 |
 | −      | GND      | 14    | GND  |
 
 KY-012 액티브 금지. `+`/가운데를 5 V에 넣지 않는다.
 
-부저가 안 울리면 배선인지 코드인지부터 가른다. 서비스가 BCM 18을 쥐고 있으니 먼저 멈춘다.
+부저가 안 울리면 배선인지 코드인지부터 가른다. 서비스가 BCM 12를 쥐고 있으니 먼저 멈춘다.
 
 ```
 sudo systemctl stop vibration-meter
@@ -68,7 +68,7 @@ sudo systemctl start vibration-meter
 - LCD 백팩은 1602에 밀착. `MISO`-`MOSI`-`CS` 브리지 금지.
 - 전원 전: 센서 VCC↔핀1, GND↔핀25. **핀1과 핀25가 통하면 숏. 켜지 않는다.**
 - LCD VCC↔17, GND↔6, SDA↔3, SCL↔5. LCD VCC와 5 V(핀2)는 통하면 안 된다.
-- 부저 S↔핀12, −↔핀14. 부저 S와 5 V(핀2)는 통하면 안 된다.
+- 부저 S↔핀32, −↔핀14. 부저 S와 5 V(핀2)는 통하면 안 된다.
 
 ## PC (센서 없이)
 
@@ -145,13 +145,13 @@ sh scripts/install-service.sh
 | `SENSOR_ID` `0xFF`           | VCC 핀1, GND 핀25, 윗줄, 5 V 여부          |
 | `SENSOR_ID` 그 외 ID         | MOSI/MISO 교차, CL-SCL/DA-SDA 연결         |
 | `LCD_OPEN`                   | 백팩 3.3 V 핀17, SDA 핀3, SCL 핀5          |
-| `BUZZ_OPEN`                  | 핀12 BCM18, KY-006 S, D8는 Pi 핀8이 아님   |
-| `BUZZ_OPEN` already in use   | 서비스가 BCM18 점유. `sudo systemctl stop vibration-meter`. 배선 아님 |
+| `BUZZ_OPEN`                  | 핀32 BCM12, KY-006 S, D8는 Pi 핀8이 아님   |
+| `BUZZ_OPEN` already in use   | 서비스가 BCM12 점유. `sudo systemctl stop vibration-meter`. 배선 아님 |
 | `BUZZ_WRITE` 음역 밖         | `TonalBuzzer` 옥타브. 기본 1옥타브는 880 Hz 까지라 1 kHz 를 못 낸다 |
 | `RATE` 창이 밀린다           | 읽기가 창보다 느리다. `--interval`을 늘린다. 배선 아님 |
 | `LCD_WRITE`                  | I2C 커넥터 헐거움                          |
-| `BUZZ_WRITE`                 | 핀12 PWM, 패시브, GND 핀14                 |
+| `BUZZ_WRITE`                 | 핀32 PWM, 패시브, GND 핀14                 |
 | `SAMPLE` bus nak             | 측정 중 SPI 단선                           |
 | `WEB_BIND` address in use    | 포트 5000 점유. 배선 아님                  |
 
-문제 보고: 센서 전면, 아랫줄(MISO/MOSI/CS) 확대, Pi 점퍼 전체, LCD 백팩 VCC가 어느 핀인지, 부저 S가 핀 12인지, `[STAGE] FAIL` 한 줄.
+문제 보고: 센서 전면, 아랫줄(MISO/MOSI/CS) 확대, Pi 점퍼 전체, LCD 백팩 VCC가 어느 핀인지, 부저 S가 핀 32인지, `[STAGE] FAIL` 한 줄.

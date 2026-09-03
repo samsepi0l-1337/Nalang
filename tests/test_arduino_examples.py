@@ -5,6 +5,7 @@ from vibration_meter.buzzer_diag import SWEEP_HZ
 from vibration_meter.hardware import (
     BUZZER_BCM,
     BUZZER_OCTAVES,
+    BUZZER_PIN,
     TONE_HZ,
     tone_range_hz,
 )
@@ -16,8 +17,11 @@ def test_device_info_matches_pl_adxl355_vendor_id():
     assert spi_command(DEVID_AD, True) == 0x01
 
 
-def test_buzzer_is_bcm18_1khz_like_tone():
-    assert BUZZER_BCM == 18
+def test_buzzer_is_pin32_bcm12_1khz_like_tone():
+    # gpiozero 가 GPIO 18(물리 핀 12)에서 PWM 을 거절한다.
+    # 하드웨어 PWM 은 핀 32(BCM 12, PWM0)와 핀 33(BCM 13).
+    assert BUZZER_PIN == 32
+    assert BUZZER_BCM == 12
     assert TONE_HZ == 1000
 
 

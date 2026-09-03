@@ -2,7 +2,7 @@
 
     python -m vibration_meter.buzzer_diag
 
-서비스가 도는 중이면 BCM 18 을 이미 쥐고 있어 열리지 않는다.
+서비스가 도는 중이면 BCM 12 를 이미 쥐고 있어 열리지 않는다.
 먼저 `sudo systemctl stop vibration-meter` 를 한다.
 """
 
@@ -17,6 +17,8 @@ from vibration_meter.errors import (
     format_ok,
 )
 from vibration_meter.hardware import (
+    BUZZER_BCM,
+    BUZZER_PIN,
     TONE_HZ,
     BuzzerFactory,
     open_buzzer,
@@ -34,7 +36,7 @@ VERDICT = (
     "판정표 — 위 로그와 실제로 들린 소리를 맞춰 본다",
     "1) [BUZZ_OPEN] FAIL      코드·권한·점유다. 배선이 아니다. "
     "서비스 정지, gpiozero 설치, gpio 그룹을 본다.",
-    "2) 열렸는데 무음         배선이다. S↔핀12(BCM18), −↔핀14 GND, 점퍼 접촉을 본다.",
+    f"2) 열렸는데 무음         배선이다. S↔핀{BUZZER_PIN}(BCM {BUZZER_BCM}), −↔핀14 GND, 점퍼 접촉을 본다.",
     "3) 소리는 나되 음정 불변  부품이다. KY-012 액티브다. KY-006 패시브로 바꾼다.",
     "4) 음정이 3단 올라감      배선·코드 정상이다. 앱에서 안 울리면 이상치 판정 쪽이다.",
 )
@@ -52,7 +54,7 @@ def run(
 ) -> int:
     """진단 순서를 돈다. 0 이면 순서를 끝까지 돌았다는 뜻이다."""
     log = get_logger()
-    log.info(format_ok("BUZZ_DIAG", f"시작 BCM 18 경보음 {TONE_HZ} Hz"))
+    log.info(format_ok("BUZZ_DIAG", f"시작 BCM {BUZZER_BCM} 경보음 {TONE_HZ} Hz"))
     buzzer = open_buzzer(create=create)
     if buzzer is None:
         _log_verdict()

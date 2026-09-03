@@ -47,17 +47,17 @@ HINT_LCD = (
 HINT_SAMPLE = "센서 SPI 배선·납땜과 DEVID 로그를 확인. README 배선 센서."
 HINT_LCD_WRITE = "I2C 커넥터·백팩 3.3V·주소 0x27/0x3F. README 배선 LCD."
 HINT_BUZZ = (
-    "패시브 KY-006: S→핀12(BCM 18), -→핀14 GND. "
+    "패시브 KY-006: S→핀32(BCM 12), -→핀14 GND. "
     "아두이노 tone(8)의 8은 D8이지 Pi 핀8(TXD)이 아니다. "
     "KY-012 액티브는 쓰지 않는다. sudo usermod -aG gpio $USER. README 부저."
 )
-HINT_BUZZ_WRITE = "핀12 PWM·KY-006 S·패시브. README 부저."
+HINT_BUZZ_WRITE = "핀32 PWM·KY-006 S·패시브. README 부저."
 HINT_RATE = (
     "표본 읽기가 창보다 오래 걸린다. --interval 을 늘려 창을 길게 잡는다. "
     "README 갱신 주기."
 )
 HINT_BUZZ_BUSY = (
-    "BCM 18 을 이미 다른 프로세스가 쥐고 있다. 서비스가 도는 중이면 "
+    "BCM 12 를 이미 다른 프로세스가 쥐고 있다. 서비스가 도는 중이면 "
     "sudo systemctl stop vibration-meter 후 다시 실행한다."
 )
 HINT_WEB_BIND = (

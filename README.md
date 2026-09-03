@@ -52,21 +52,21 @@ PL_ADXL355 SPI 열과 같은 4선. I2C 열의 GND 묶기는 하지 않는다.
 
 Arduino `tone(8, 1000)` / `noTone(8)` 과 같다. `digitalWrite`만 하면 패시브는 안 울린다. KY-012 액티브는 쓰지 않는다.
 
-아두이노 예제의 `8`은 **D8**이지, Pi 헤더 핀 8(GPIO 14 TXD)이 아니다. Pi는 하드웨어 PWM0인 **핀 12**(BCM 18).
+아두이노 예제의 `8`은 **D8**이지, Pi 헤더 핀 8(GPIO 14 TXD)이 아니다. Pi는 하드웨어 PWM0인 **핀 32**(BCM 12). 핀 12(BCM 18)는 gpiozero가 PWM을 거절한다.
 
 | KY-006 | 아두이노 `tone()` | Pi 핀 | BCM | 신호 |
 | ------ | ----------------- | ----- | --- | ---- |
-| S      | D8                | 12    | 18  | PWM  |
+| S      | D8                | 32    | 12  | PWM  |
 | 가운데 | NC (대부분)       | NC    | —   | 연결하지 않음 |
 | −      | GND               | 14    | —   | GND  |
 
-2핀 피에조면 + → 핀 12(100 Ω 직렬 가능), − → 핀 14. 가운데/`+`를 핀 2·4(5 V)에 넣지 않는다. 3핀 모듈의 `+`가 전원으로 실크된 경우만 **핀 1 또는 17 (3.3 V)**.
+2핀 피에조면 + → 핀 32(100 Ω 직렬 가능), − → 핀 14. 가운데/`+`를 핀 2·4(5 V)에 넣지 않는다. 3핀 모듈의 `+`가 전원으로 실크된 경우만 **핀 1 또는 17 (3.3 V)**.
 
 빠지면 로그 `BUZZ_OPEN` / `BUZZ_WRITE`. 실패해도 웹·LCD는 계속한다.
 
 ### 부저가 안 울릴 때 (배선인지 코드인지)
 
-서비스가 BCM 18을 쥐고 있으면 진단이 열리지 않는다. **먼저 멈춘다.**
+서비스가 BCM 12를 쥐고 있으면 진단이 열리지 않는다. **먼저 멈춘다.**
 
 ```
 sudo systemctl stop vibration-meter
@@ -79,8 +79,8 @@ sudo systemctl start vibration-meter
 | 들린 것 | 원인 | 볼 곳 |
 | ------- | ---- | ----- |
 | `[BUZZ_OPEN] FAIL` | 코드·권한·점유. **배선이 아니다** | 서비스 정지, `pip install -r requirements-pi.txt`, `usermod -aG gpio $USER` |
-| `[BUZZ_WRITE] FAIL` | 열린 뒤 PWM 거절 | 음역(`BUZZ_OPEN` 줄에 찍힌다) 밖 주파수이거나 핀12 PWM 충돌 |
-| 열렸는데 무음 | 배선 | S↔핀12(BCM 18), −↔핀14, 점퍼 접촉 |
+| `[BUZZ_WRITE] FAIL` | 열린 뒤 PWM 거절 | 음역(`BUZZ_OPEN` 줄에 찍힌다) 밖 주파수이거나 핀32 PWM 충돌 |
+| 열렸는데 무음 | 배선 | S↔핀32(BCM 12), −↔핀14, 점퍼 접촉 |
 | 소리는 나되 음정 불변 | 부품 | KY-012 액티브다. KY-006 패시브로 바꾼다 |
 | 음정이 3단 올라감 | 배선·코드 정상 | 앱에서만 안 울리면 이상치 판정 쪽(`ALERT` 로그) |
 
@@ -97,9 +97,9 @@ sudo systemctl start vibration-meter
 - 윤기 있는 원뿔 납땜. `MISO`-`MOSI`-`CS` 브리지 금지.
 - 3.3 V와 GND가 붙으면 전원 금지.
 
-전원 넣기 전 연속성: 센서 VCC↔핀1, GND↔핀25, SCK/MOSI/MISO/CS↔표의 핀. **핀1과 핀25가 통하면 숏.** LCD VCC↔17, GND↔6, SDA↔3, SCL↔5. LCD VCC와 5 V(핀2)는 통하면 안 된다. 부저 S↔핀12, −↔핀14. 부저 S와 5 V(핀2)는 통하면 안 된다.
+전원 넣기 전 연속성: 센서 VCC↔핀1, GND↔핀25, SCK/MOSI/MISO/CS↔표의 핀. **핀1과 핀25가 통하면 숏.** LCD VCC↔17, GND↔6, SDA↔3, SCL↔5. LCD VCC와 5 V(핀2)는 통하면 안 된다. 부저 S↔핀32, −↔핀14. 부저 S와 5 V(핀2)는 통하면 안 된다.
 
-문제 보고 시: 센서 전면, 아랫줄(MISO/MOSI/CS) 확대, Pi 점퍼 전체, LCD 백팩 VCC가 어느 핀인지, 부저 S가 핀 12인지, 로그 `[STAGE] FAIL` 한 줄. 부저 건이면 `PYTHONPATH=src .venv/bin/python -m vibration_meter.buzzer_diag` 출력 전체와 **실제로 들린 소리**를 같이 보낸다. 로그만으로는 2번과 4번을 가를 수 없다.
+문제 보고 시: 센서 전면, 아랫줄(MISO/MOSI/CS) 확대, Pi 점퍼 전체, LCD 백팩 VCC가 어느 핀인지, 부저 S가 핀 32인지, 로그 `[STAGE] FAIL` 한 줄. 부저 건이면 `PYTHONPATH=src .venv/bin/python -m vibration_meter.buzzer_diag` 출력 전체와 **실제로 들린 소리**를 같이 보낸다. 로그만으로는 2번과 4번을 가를 수 없다.
 
 ## 측정
 
@@ -112,7 +112,7 @@ sudo systemctl start vibration-meter
 - 위 5초·10초·60초는 **초**다. 창 길이가 바뀌면 창 개수로 환산한다(0.2초 창이면 연속 25창). 갱신을 빨리해도 판정 기준은 그대로다.
 - 폰: 포트 5000, 최근 60초 RMS 그래프. 원시 파형은 보내지 않는다.
 
-스택: Python 3, `spidev`, `RPLCD`+`smbus2`, `gpiozero` `TonalBuzzer`, `numpy`, `Flask`+`Flask-SocketIO` (threading), Chart.js CDN. SPI `/dev/spidev0.0` 1 MHz mode 0. DEVID_AD=`0xAD`, RANGE=`0x83`, FILTER=`0x02`, POWER_CTL=`0x00`. 부저 BCM 18, 1000 Hz.
+스택: Python 3, `spidev`, `RPLCD`+`smbus2`, `gpiozero` `TonalBuzzer`, `numpy`, `Flask`+`Flask-SocketIO` (threading), Chart.js CDN. SPI `/dev/spidev0.0` 1 MHz mode 0. DEVID_AD=`0xAD`, RANGE=`0x83`, FILTER=`0x02`, POWER_CTL=`0x00`. 부저 BCM 12(핀 32), 1000 Hz.
 
 ## 로그
 
@@ -129,7 +129,7 @@ stderr. 형식: `[SENSOR_ID] FAIL DEVID_AD=0x00 expected=0xAD | HINT ...`
 | 5    | `SENSOR_CFG` | ±8 g, 1000 Hz               |
 | 6    | `LCD_ADDR`   | 0x27 또는 0x3F 시도         |
 | 7    | `LCD_OPEN`   | 1602. 실패해도 웹 계속      |
-| 8    | `BUZZ_OPEN`  | 핀12 PWM. 실패해도 웹 계속  |
+| 8    | `BUZZ_OPEN`  | 핀32 PWM. 실패해도 웹 계속  |
 | 9    | `LOOP`       | 측정 스레드                 |
 | 10   | `WEB_BIND`   | 포트 5000                   |
 | 11   | `SAMPLE`     | 창 하나 RMS 성공            |
@@ -151,9 +151,9 @@ stderr. 형식: `[SENSOR_ID] FAIL DEVID_AD=0x00 expected=0xAD | HINT ...`
 | `SENSOR_ID` | `DEVID_AD=0xFF`        | VCC 핀1, GND 핀25, 윗줄, 5 V  |
 | `SENSOR_ID` | 그 외 ID               | MOSI/MISO 교차, CL-SCL/DA-SDA |
 | `LCD_OPEN`  | I2C / no device        | 백팩 3.3 V 핀17, SDA/SCL      |
-| `BUZZ_OPEN` | gpiozero / PWM         | 핀12 BCM18, KY-006 S, D8≠핀8  |
+| `BUZZ_OPEN` | gpiozero / PWM         | 핀32 BCM12, KY-006 S, D8≠핀8  |
 | `LCD_WRITE` | i2c timeout            | 커넥터 헐거움                 |
-| `BUZZ_WRITE`| pwm timeout            | 핀12, 패시브, GND 핀14        |
+| `BUZZ_WRITE`| pwm timeout            | 핀32, 패시브, GND 핀14        |
 | `SAMPLE`    | bus nak                | 측정 중 SPI 단선              |
 | `WEB_BIND`  | address in use         | 포트 5000 점유. 배선 아님     |
 

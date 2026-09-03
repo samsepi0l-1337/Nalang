@@ -70,7 +70,7 @@ def test_verdict_names_wiring_and_code_branches(caplog):
     text = "\n".join(rec.getMessage() for rec in caplog.records)
     assert "배선" in text
     assert "KY-012" in text
-    assert "핀12" in text
+    assert "핀32" in text
 
 
 @pytest.mark.parametrize("hz", SWEEP_HZ)

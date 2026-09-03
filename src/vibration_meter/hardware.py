@@ -35,7 +35,11 @@ LcdFactory = Callable[[int], LcdDevice]
 BuzzerFactory = Callable[[], BuzzerDevice]
 ToneFactory = Callable[[float], object]
 
-BUZZER_BCM = 18
+# gpiozero/lgpio 는 GPIO 18(물리 핀 12)에서 PWM 을 거절한다
+# ("pwm is not supported on pin gpio18"). 하드웨어 PWM 은 핀 32(BCM 12,
+# PWM0)와 핀 33(BCM 13, PWM1). 부저는 PWM0 을 쓴다.
+BUZZER_PIN = 32
+BUZZER_BCM = 12
 TONE_HZ = 1000
 
 # TonalBuzzer 는 mid_tone 을 중심으로 ±octaves 만 낸다. 기본값 A4(440 Hz)/1

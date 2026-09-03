@@ -5,6 +5,7 @@ import types
 import pytest
 
 from vibration_meter.errors import HINT_BUZZ, HINT_BUZZ_BUSY, HardwareError
+from vibration_meter.hardware import BUZZER_BCM, BUZZER_PIN
 from vibration_meter.hardware import (
     buzz_open_hint,
     open_buzzer,
@@ -79,6 +80,15 @@ def test_pin_in_use_points_at_the_running_service_not_the_wiring():
 
 def test_plain_failure_keeps_the_wiring_hint():
     assert buzz_open_hint(OSError("No such device")) == HINT_BUZZ
+
+
+def test_buzz_hint_names_pwm_pin32_not_gpio18():
+    # GPIO 18 에 PWM 을 걸면 "pwm is not supported on pin gpio18" 로 죽는다.
+    assert f"핀{BUZZER_PIN}" in HINT_BUZZ
+    assert f"BCM {BUZZER_BCM}" in HINT_BUZZ
+    assert "핀12" not in HINT_BUZZ
+    assert "BCM 18" not in HINT_BUZZ
+    assert "BCM 18" not in HINT_BUZZ_BUSY
 
 
 def test_open_buzzer_busy_hint_reaches_the_log(caplog):
