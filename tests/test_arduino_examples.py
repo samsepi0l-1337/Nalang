@@ -9,7 +9,7 @@ from vibration_meter.hardware import (
     TONE_HZ,
     tone_range_hz,
 )
-from vibration_meter.outlier import PERSIST_S, SHARP_RATIO, SOFT_RATIO
+from vibration_meter.detect import DEFAULT_THRESHOLD_G, THRESHOLDS_G
 
 
 def test_device_info_matches_pl_adxl355_vendor_id():
@@ -44,6 +44,5 @@ def test_buzzer_octaves_is_pinned():
 
 
 def test_alert_thresholds_match_readme_rule():
-    assert SOFT_RATIO == 0.05
-    assert SHARP_RATIO == 0.10
-    assert PERSIST_S == 5
+    assert THRESHOLDS_G == (0.7, 8.0)
+    assert DEFAULT_THRESHOLD_G == 0.7
