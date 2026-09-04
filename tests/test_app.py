@@ -6,17 +6,21 @@ from vibration_meter.app import (
     DEFAULT_INTERVAL_S,
     HISTORY_S,
     MIN_INTERVAL_S,
+    AlertState,
     MeasureConfig,
     RateWatch,
+    apply_detect,
     check_web_bind,
     main,
+    parse_args,
     publish_reading,
 )
+from vibration_meter.detect import DEFAULT_THRESHOLD_G, DetectMode, mode
 from vibration_meter.errors import HardwareError
 from vibration_meter.adxl355 import ODR_HZ
 from vibration_meter.display import UpdateThrottle
 from vibration_meter.metrics import RmsHistory
-from vibration_meter.outlier import BASELINE_S, MIN_BASELINE, PERSIST_S, PersistTracker
+from vibration_meter.outlier import BASELINE_S, MIN_BASELINE, PERSIST_S
 
 
 class SequenceSensor:
@@ -73,6 +77,13 @@ class FakeLcd:
         self.line2 = line2
 
 
+@pytest.fixture(autouse=True)
+def _reset_detect_mode():
+    mode.set_threshold(DEFAULT_THRESHOLD_G)
+    yield
+    mode.set_threshold(DEFAULT_THRESHOLD_G)
+
+
 def test_publish_reading_logs_sample_ok(caplog):
     caplog.set_level(logging.INFO)
     socket = FakeSocket()
@@ -87,6 +98,9 @@ def test_publish_reading_logs_sample_ok(caplog):
     )
     assert ok is True
     assert socket.events[0][0] == "reading"
+    payload = socket.events[0][1]
+    assert payload["alert"] is False
+    assert payload["threshold_g"] == 0.7
     assert any("[SAMPLE] OK" in rec.message for rec in caplog.records)
 
 
@@ -124,23 +138,46 @@ def test_publish_reading_shows_outlier_on_sharp_jump(caplog):
     caplog.set_level(logging.INFO)
     lcd = FakeLcd()
     buzzer = FakeBuzzer()
-    history = RmsHistory()
-    for i in range(MIN_BASELINE):
-        history.push(float(i), 0.01)
+    socket = FakeSocket()
     ok = publish_reading(
         HighAcSensor(),
         lcd,
-        history,
-        FakeSocket(),
+        RmsHistory(),
+        socket,
         samples=3,
         duration_s=0.0,
         buzzer=buzzer,
-        tracker=PersistTracker(),
+        detect=DetectMode(0.7),
+        alert_state=AlertState(),
     )
     assert ok is True
     assert lcd.line2.startswith("OUTLIER")
     assert buzzer.states[-1] is True
+    assert socket.events[0][1]["alert"] is True
+    assert socket.events[0][1]["threshold_g"] == 0.7
     assert any("[ALERT] OK on" in rec.message for rec in caplog.records)
+
+
+def test_publish_reading_does_not_alert_below_8g():
+    lcd = FakeLcd()
+    buzzer = FakeBuzzer()
+    socket = FakeSocket()
+    ok = publish_reading(
+        HighAcSensor(),
+        lcd,
+        RmsHistory(),
+        socket,
+        samples=3,
+        duration_s=0.0,
+        buzzer=buzzer,
+        detect=DetectMode(8.0),
+        alert_state=AlertState(),
+    )
+    assert ok is True
+    assert not lcd.line2.startswith("OUTLIER")
+    assert buzzer.states[-1] is False
+    assert socket.events[0][1]["alert"] is False
+    assert socket.events[0][1]["threshold_g"] == 8.0
 
 
 def test_publish_reading_logs_buzz_write_fail_and_keeps_web(caplog):
@@ -154,7 +191,6 @@ def test_publish_reading_logs_buzz_write_fail_and_keeps_web(caplog):
         samples=3,
         duration_s=0.0,
         buzzer=FakeBuzzer(fail=True),
-        tracker=PersistTracker(),
     )
     assert ok is True
     assert socket.events
@@ -200,6 +236,20 @@ def test_interval_below_floor_exits_two():
     assert caught.value.code == 2
 
 
+def test_detect_8_is_accepted():
+    args = parse_args(["--detect", "8"])
+    assert apply_detect(args.detect) == 8.0
+    assert mode.threshold_g == 8.0
+
+
+def test_invalid_detect_exits_two(caplog):
+    caplog.set_level(logging.ERROR)
+    with pytest.raises(SystemExit) as caught:
+        main(["--detect", "2"])
+    assert caught.value.code == 2
+    assert any("[BOOT] FAIL" in rec.message for rec in caplog.records)
+
+
 def test_throttle_skips_lcd_but_never_stops_the_web():
     clock = FakeClock()
     throttle = UpdateThrottle(min_interval_s=0.5, now=clock)
@@ -223,17 +273,16 @@ def test_alert_transition_bypasses_the_lcd_throttle():
     clock = FakeClock()
     throttle = UpdateThrottle(min_interval_s=60.0, now=clock)
     lcd = FakeLcd()
-    history = RmsHistory()
-    for i in range(MIN_BASELINE):
-        history.push(float(i), 0.01)
+    state = AlertState()
+    detector = DetectMode(0.7)
     # 첫 창이 스로틀 시계를 찍고, 두 번째 창은 이상치 전환으로 뚫어야 한다.
     publish_reading(
         SequenceSensor(), lcd, RmsHistory(), FakeSocket(), samples=3, duration_s=0.0,
-        lcd_throttle=throttle,
+        detect=detector, alert_state=state, lcd_throttle=throttle,
     )
     publish_reading(
-        HighAcSensor(), lcd, history, FakeSocket(), samples=3, duration_s=0.0,
-        tracker=PersistTracker(), lcd_throttle=throttle,
+        HighAcSensor(), lcd, RmsHistory(), FakeSocket(), samples=3, duration_s=0.0,
+        detect=detector, alert_state=state, lcd_throttle=throttle,
     )
     assert lcd.updates == 2
     assert lcd.line2.startswith("OUTLIER")
