@@ -3,7 +3,7 @@
 Raspberry Pi Zero 2 W 한 대, 기존 Wi-Fi. 센서 ADXL355B(SPI) + I2C 1602.
 사양·핀 표의 원본은 `README.md`.
 
-벨트/윤활 판정, FFT, 저장, AP는 하지 않는다. 평균 대비 5% 연속 5초 또는 10% 급변이면 1602 `OUTLIER`와 패시브 부저. 갱신은 기본 0.2초(초당 5회), `--interval`로 바꾼다.
+벨트/윤활 판정, FFT, 저장, AP는 하지 않는다. 오류 탐지 단위 두 개: **0.7 g**, **8 g**. 창 RMS가 선택한 값 이상이면 1602 `OUTLIER`와 패시브 부저. 기본 0.7 g. `--detect 0.7`/`--detect 8` 또는 웹 `0.7 g`/`8 g` 버튼(`GET`/`POST /api/detect`). 잘못된 `--detect`는 `[BOOT] FAIL`, 종료 코드 2. 갱신은 기본 0.2초(초당 5회), `--interval`로 바꾼다.
 
 ## 전원·핀 (먼저)
 
@@ -117,7 +117,7 @@ PYTHONPATH=src .venv/bin/python -m vibration_meter.app
 
 폰은 같은 Wi-Fi에서 `http://<pi-ip>:5000`. 차트(Chart.js / Socket.IO)는 CDN이라 Pi에 인터넷이 필요하다.
 
-옵션: `--host 0.0.0.0 --port 5000 --log-level INFO`.
+옵션: `--host 0.0.0.0 --port 5000 --log-level INFO`. `--detect 0.7`(기본) 또는 `--detect 8`. 잘못된 값은 `[BOOT] FAIL`, 종료 코드 2.
 
 ## 자동 시작 (systemd)
 
@@ -133,10 +133,12 @@ sh scripts/install-service.sh
 
 형식: `[STAGE] FAIL … | HINT …`. 원격에는 그 한 줄을 그대로 보낸다.
 
-`SPI_OPEN` / `SENSOR_ID` 실패는 종료 코드 2. LCD·부저 실패는 웹을 계속한다.
+`SPI_OPEN` / `SENSOR_ID` 실패는 종료 코드 2. 잘못된 `--detect`도 `[BOOT] FAIL`, 종료 코드 2. LCD·부저 실패는 웹을 계속한다.
 
 | 로그                         | 볼 곳                                      |
 | ---------------------------- | ------------------------------------------ |
+| `BOOT` `--detect` 잘못된 값  | 0.7 또는 8만. 배선 아님                    |
+| 부저가 바로 울림             | 창 RMS ≥ 0.7 g. `--detect 8` 또는 웹 `8 g` |
 | `SPI_OPEN` spidev 없음       | raspi-config SPI, 재부팅                   |
 | `SPI_OPEN` Permission denied | `usermod -aG spi,i2c,gpio $USER` 후 재로그인 |
 | (저널 없음) 출력이 비어 있음 | `adm` 그룹 아님. `sudo journalctl` 또는 `sudo usermod -aG adm $USER` 후 재로그인 |

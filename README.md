@@ -2,7 +2,7 @@
 
 Raspberry Pi Zero 2 W + ADXL355B + I2C 1602. 사양·배선·납땜·로그는 이 파일만 본다.
 
-벨트/윤활 자동 판정, FFT, 저장, AP, 여러 대는 하지 않는다. 목적: 평소와 다른 진동을 **측정·표시**. 평균 대비 5%가 연속 5초이거나 10% 급변이면 1602에 `OUTLIER`를 띄우고 패시브 부저를 켠다.
+벨트/윤활 자동 판정, FFT, 저장, AP, 여러 대는 하지 않는다. 목적: 평소와 다른 진동을 **측정·표시**. 오류 탐지 단위 두 개: **0.7 g**, **8 g**. 창 RMS가 선택한 값 이상이면 1602에 `OUTLIER`를 띄우고 패시브 부저를 켠다. 기본 **0.7 g**.
 
 | 항목       | 결정                                    |
 | ---------- | --------------------------------------- |
@@ -108,8 +108,8 @@ sudo systemctl start vibration-meter
 - **갱신 주기 = 창 길이.** 기본 0.2초(초당 5회). `--interval`로 바꾼다. 표본 수는 ODR × 창이라 0.2초면 200개다.
 - 최소 0.1초. 그보다 짧으면 20 Hz 진동이 창에 두 주기도 안 들어가 RMS가 요동친다. 짧게 주면 `[BOOT] FAIL`로 막고 종료 코드 2.
 - 1602는 최대 0.5초에 한 번만 쓴다. I2C로 32자 미는 데 수십 ms가 들어 매 창 쓰면 측정 시간을 갉아먹는다. **이상치 전환은 이 제한을 무시하고 즉시 뜬다.**
-- 이상치 표시: 직전 창 RMS 평균 대비 |Δ|≥5%가 **연속 5초**, 또는 |Δ|≥10%로 **급변**. 기준 10초 미만은 판정하지 않음. 걸리면 2행 `OUTLIER        X`, 패시브 부저 1 kHz (`tone()`).
-- 위 5초·10초·60초는 **초**다. 창 길이가 바뀌면 창 개수로 환산한다(0.2초 창이면 연속 25창). 갱신을 빨리해도 판정 기준은 그대로다.
+- 오류 탐지 단위 두 개: **0.7 g**, **8 g**. 창 RMS가 선택한 값 이상이면 2행 `OUTLIER        X`, 패시브 부저 1 kHz (`tone()`). 기본 **0.7 g**.
+- 스위칭: CLI `--detect 0.7` 또는 `--detect 8`. 웹 `0.7 g` / `8 g` 버튼 (`GET`/`POST /api/detect`). 잘못된 `--detect`는 `[BOOT] FAIL`, 종료 코드 2.
 - 폰: 포트 5000, 최근 60초 RMS 그래프. 원시 파형은 보내지 않는다.
 
 스택: Python 3, `spidev`, `RPLCD`+`smbus2`, `gpiozero` `TonalBuzzer`, `numpy`, `Flask`+`Flask-SocketIO` (threading), Chart.js CDN. SPI `/dev/spidev0.0` 1 MHz mode 0. DEVID_AD=`0xAD`, RANGE=`0x83`, FILTER=`0x02`, POWER_CTL=`0x00`. 부저 BCM 12(핀 32), 1000 Hz.
@@ -123,26 +123,28 @@ stderr. 형식: `[SENSOR_ID] FAIL DEVID_AD=0x00 expected=0xAD | HINT ...`
 | 순서 | 코드         | OK 의미                     |
 | ---- | ------------ | --------------------------- |
 | 1    | `BOOT`       | 프로세스 시작               |
-| 2    | `MOCK`       | `--mock` 합성 센서          |
-| 3    | `SPI_OPEN`   | `/dev/spidev0.0` 열림       |
-| 4    | `SENSOR_ID`  | DEVID_AD=`0xAD`             |
-| 5    | `SENSOR_CFG` | ±8 g, 1000 Hz               |
-| 6    | `LCD_ADDR`   | 0x27 또는 0x3F 시도         |
-| 7    | `LCD_OPEN`   | 1602. 실패해도 웹 계속      |
-| 8    | `BUZZ_OPEN`  | 핀32 PWM. 실패해도 웹 계속  |
-| 9    | `LOOP`       | 측정 스레드                 |
-| 10   | `WEB_BIND`   | 포트 5000                   |
-| 11   | `SAMPLE`     | 창 하나 RMS 성공            |
-| 12   | `ALERT`      | 지속 이상치 on/off          |
-| 13   | `LCD_WRITE`  | 1602 갱신. 실패해도 웹 계속 |
-| 14   | `BUZZ_WRITE` | 부저. 실패해도 웹 계속      |
+| 2    | `DETECT`     | `[DETECT] OK threshold=0.7g` (또는 8g) |
+| 3    | `MOCK`       | `--mock` 합성 센서          |
+| 4    | `SPI_OPEN`   | `/dev/spidev0.0` 열림       |
+| 5    | `SENSOR_ID`  | DEVID_AD=`0xAD`             |
+| 6    | `SENSOR_CFG` | ±8 g, 1000 Hz               |
+| 7    | `LCD_ADDR`   | 0x27 또는 0x3F 시도         |
+| 8    | `LCD_OPEN`   | 1602. 실패해도 웹 계속      |
+| 9    | `BUZZ_OPEN`  | 핀32 PWM. 실패해도 웹 계속  |
+| 10   | `LOOP`       | 측정 스레드                 |
+| 11   | `WEB_BIND`   | 포트 5000                   |
+| 12   | `SAMPLE`     | 창 하나 RMS 성공            |
+| 13   | `ALERT`      | 이상치 on/off               |
+| 14   | `LCD_WRITE`  | 1602 갱신. 실패해도 웹 계속 |
+| 15   | `BUZZ_WRITE` | 부저. 실패해도 웹 계속      |
 
-`RATE`는 부팅 때 창·표본·판정 창수를 한 줄로 남긴다. 읽기가 창보다 오래 걸리면 `[RATE] FAIL`, 따라잡으면 `[RATE] OK`. 상태가 바뀔 때만 남기므로 매 창 뜨지 않는다.
+`RATE`는 부팅 때 창·표본을 한 줄로 남긴다. 읽기가 창보다 오래 걸리면 `[RATE] FAIL`, 따라잡으면 `[RATE] OK`. 상태가 바뀔 때만 남기므로 매 창 뜨지 않는다.
 
-`SPI_OPEN` / `SENSOR_ID` / `SENSOR_CFG` 실패는 종료 코드 2. `WEB_BIND` 실패는 종료 코드 1. LCD·부저 실패는 종료하지 않는다.
+`SPI_OPEN` / `SENSOR_ID` / `SENSOR_CFG` 실패는 종료 코드 2. 잘못된 `--detect`는 `[BOOT] FAIL`, 종료 코드 2. `WEB_BIND` 실패는 종료 코드 1. LCD·부저 실패는 종료하지 않는다.
 
 | 코드        | 대표 메시지            | 볼 곳                         |
 | ----------- | ---------------------- | ----------------------------- |
+| `BOOT`      | `--detect` 잘못된 값   | 0.7 또는 8만. 배선 아님       |
 | `SPI_OPEN`  | spidev 없음            | raspi-config SPI, 재부팅      |
 | `SPI_OPEN`  | Permission denied      | `usermod -aG spi,i2c,gpio $USER` |
 | (저널 없음) | 출력이 비어 있음       | `adm` 그룹 아님. `sudo journalctl` 또는 `usermod -aG adm $USER` |
