@@ -9,11 +9,30 @@
   <style>
     body { font-family: sans-serif; margin: 12px; background: #111; color: #eee; }
     #meta { font-size: 1.2rem; margin-bottom: 8px; }
+    #detect { margin-bottom: 10px; }
+    #detect button {
+      background: #222;
+      color: #ccc;
+      border: 2px solid #444;
+      padding: 8px 14px;
+      margin-right: 8px;
+      border-radius: 6px;
+      font-size: 1rem;
+    }
+    #detect button.selected {
+      background: #1565c0;
+      color: #fff;
+      border-color: #4fc3f7;
+    }
     canvas { width: 100% !important; max-height: 70vh; }
   </style>
 </head>
 <body>
   <div id="meta">연결 중…</div>
+  <div id="detect">
+    <button type="button" data-threshold="0.7">0.7 g</button>
+    <button type="button" data-threshold="8">8 g</button>
+  </div>
   <canvas id="chart"></canvas>
   <script>
     const meta = document.getElementById("meta");
@@ -25,9 +44,32 @@
         scales: { y: { beginAtZero: true } }
       }
     });
+    function selectThreshold(threshold) {
+      document.querySelectorAll("#detect button").forEach((btn) => {
+        btn.classList.toggle("selected", Number(btn.dataset.threshold) === Number(threshold));
+      });
+    }
+    document.querySelectorAll("#detect button").forEach((btn) => {
+      btn.addEventListener("click", () => {
+        const threshold_g = Number(btn.dataset.threshold);
+        fetch("/api/detect", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ threshold_g: threshold_g }),
+        }).then((r) => r.json()).then((data) => {
+          if (data.threshold_g != null) selectThreshold(data.threshold_g);
+        });
+      });
+    });
+    fetch("/api/detect").then((r) => r.json()).then((data) => {
+      if (data.threshold_g != null) selectThreshold(data.threshold_g);
+    });
     const socket = io();
     socket.on("reading", (msg) => {
-      meta.textContent = "RMS " + msg.rms_g.toFixed(3) + " g  PK " + msg.peak_g.toFixed(3) + " g  " + msg.axis;
+      let text = "RMS " + msg.rms_g.toFixed(3) + " g  PK " + msg.peak_g.toFixed(3) + " g  " + msg.axis;
+      if (msg.alert) text += " OUTLIER";
+      meta.textContent = text;
+      if (msg.threshold_g != null) selectThreshold(msg.threshold_g);
       chart.data.labels = msg.history.map((p) => "");
       chart.data.datasets[0].data = msg.history.map((p) => p.rms_g);
       chart.update();
