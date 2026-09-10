@@ -9,13 +9,24 @@
   <style>
     body { font-family: sans-serif; margin: 12px; background: #111; color: #eee; }
     #meta { font-size: 1.2rem; margin-bottom: 8px; }
-    #detect { margin-bottom: 10px; }
-    #detect button {
+    #detect {
+      display: flex;
+      flex-wrap: wrap;
+      align-items: center;
+      gap: 8px;
+      margin-bottom: 10px;
+    }
+    #product-buttons, #product-manage {
+      display: flex;
+      flex-wrap: wrap;
+      align-items: center;
+      gap: 8px;
+    }
+    #detect button, #detect select {
       background: #222;
       color: #ccc;
       border: 2px solid #444;
       padding: 8px 14px;
-      margin-right: 8px;
       border-radius: 6px;
       font-size: 1rem;
     }
@@ -24,18 +35,43 @@
       color: #fff;
       border-color: #4fc3f7;
     }
+    #detect button.manage {
+      border-color: #888;
+    }
+    #detect button:disabled {
+      opacity: 0.45;
+    }
     canvas { width: 100% !important; max-height: 70vh; }
   </style>
 </head>
 <body>
   <div id="meta">연결 중…</div>
   <div id="detect">
-    <button type="button" data-threshold="0.7">0.7 g</button>
-    <button type="button" data-threshold="8">8 g</button>
+    <div id="product-buttons"></div>
+    <div id="product-manage">
+      <button type="button" id="add-product" class="manage">제품 추가</button>
+      <select id="add-product-select" hidden>
+        <option value="">제품 선택</option>
+      </select>
+      <button type="button" id="remove-product" class="manage">제품 삭제</button>
+      <select id="remove-product-select" hidden>
+        <option value="">제품 선택</option>
+      </select>
+    </div>
   </div>
   <canvas id="chart"></canvas>
   <script>
     const meta = document.getElementById("meta");
+    const productButtons = document.getElementById("product-buttons");
+    const addBtn = document.getElementById("add-product");
+    const removeBtn = document.getElementById("remove-product");
+    const addSelect = document.getElementById("add-product-select");
+    const removeSelect = document.getElementById("remove-product-select");
+    const state = {
+      threshold_g: 0.7,
+      visible_g: [0.7, 8],
+      products: [],
+    };
     const chart = new Chart(document.getElementById("chart"), {
       type: "line",
       data: { labels: [], datasets: [{ label: "RMS (g)", data: [], borderColor: "#4fc3f7", pointRadius: 0 }] },
@@ -44,32 +80,111 @@
         scales: { y: { beginAtZero: true } }
       }
     });
-    function selectThreshold(threshold) {
-      document.querySelectorAll("#detect button").forEach((btn) => {
-        btn.classList.toggle("selected", Number(btn.dataset.threshold) === Number(threshold));
+    function sameG(a, b) {
+      return Number(a) === Number(b);
+    }
+    function isVisible(threshold) {
+      return state.visible_g.some((g) => sameG(g, threshold));
+    }
+    function productName(threshold) {
+      const found = state.products.find((p) => sameG(p.threshold_g, threshold));
+      return found ? found.name : String(threshold);
+    }
+    function hideSelects() {
+      addSelect.hidden = true;
+      removeSelect.hidden = true;
+      addSelect.value = "";
+      removeSelect.value = "";
+    }
+    function fillSelect(select, items) {
+      select.innerHTML = "";
+      const placeholder = document.createElement("option");
+      placeholder.value = "";
+      placeholder.textContent = "제품 선택";
+      select.appendChild(placeholder);
+      items.forEach((p) => {
+        const option = document.createElement("option");
+        option.value = String(p.threshold_g);
+        option.textContent = p.name;
+        select.appendChild(option);
       });
     }
-    document.querySelectorAll("#detect button").forEach((btn) => {
-      btn.addEventListener("click", () => {
-        const threshold_g = Number(btn.dataset.threshold);
-        fetch("/api/detect", {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({ threshold_g: threshold_g }),
-        }).then((r) => r.json()).then((data) => {
-          if (data.threshold_g != null) selectThreshold(data.threshold_g);
-        });
+    function highlightSelected() {
+      productButtons.querySelectorAll("button").forEach((btn) => {
+        btn.classList.toggle("selected", sameG(btn.dataset.threshold, state.threshold_g));
       });
+    }
+    function render() {
+      const addable = state.products.filter((p) => !isVisible(p.threshold_g));
+      const removable = state.products.filter((p) => isVisible(p.threshold_g));
+      productButtons.innerHTML = "";
+      removable.forEach((p) => {
+        const btn = document.createElement("button");
+        btn.type = "button";
+        btn.dataset.threshold = String(p.threshold_g);
+        btn.textContent = p.name;
+        btn.addEventListener("click", () => {
+          fetch("/api/detect", {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({ threshold_g: p.threshold_g }),
+          }).then((r) => r.json()).then(applyState);
+        });
+        productButtons.appendChild(btn);
+      });
+      addBtn.disabled = addable.length === 0;
+      removeBtn.disabled = removable.length <= 1;
+      fillSelect(addSelect, addable);
+      fillSelect(removeSelect, removable);
+      if (addable.length === 0) addSelect.hidden = true;
+      if (removable.length <= 1) removeSelect.hidden = true;
+      highlightSelected();
+    }
+    function applyState(data) {
+      if (!data || data.error) return;
+      if (data.products) state.products = data.products;
+      if (data.visible_g) state.visible_g = data.visible_g;
+      if (data.threshold_g != null) state.threshold_g = data.threshold_g;
+      hideSelects();
+      render();
+    }
+    function mutateProduct(action, threshold_g) {
+      fetch("/api/products", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ action: action, threshold_g: threshold_g }),
+      }).then((r) => r.json()).then(applyState);
+    }
+    addBtn.addEventListener("click", () => {
+      if (addBtn.disabled) return;
+      const show = addSelect.hidden;
+      hideSelects();
+      if (show) addSelect.hidden = false;
     });
-    fetch("/api/detect").then((r) => r.json()).then((data) => {
-      if (data.threshold_g != null) selectThreshold(data.threshold_g);
+    removeBtn.addEventListener("click", () => {
+      if (removeBtn.disabled) return;
+      const show = removeSelect.hidden;
+      hideSelects();
+      if (show) removeSelect.hidden = false;
     });
+    addSelect.addEventListener("change", () => {
+      if (!addSelect.value) return;
+      mutateProduct("add", Number(addSelect.value));
+    });
+    removeSelect.addEventListener("change", () => {
+      if (!removeSelect.value) return;
+      mutateProduct("remove", Number(removeSelect.value));
+    });
+    fetch("/api/detect").then((r) => r.json()).then(applyState);
     const socket = io();
     socket.on("reading", (msg) => {
       let text = "RMS " + msg.rms_g.toFixed(3) + " g  PK " + msg.peak_g.toFixed(3) + " g  " + msg.axis;
       if (msg.alert) text += " OUTLIER";
       meta.textContent = text;
-      if (msg.threshold_g != null) selectThreshold(msg.threshold_g);
+      if (msg.threshold_g != null) {
+        state.threshold_g = msg.threshold_g;
+        highlightSelected();
+      }
       chart.data.labels = msg.history.map((p) => "");
       chart.data.datasets[0].data = msg.history.map((p) => p.rms_g);
       chart.update();

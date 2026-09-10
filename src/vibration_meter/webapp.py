@@ -3,7 +3,7 @@ from pathlib import Path
 from flask import Flask, jsonify, render_template, request
 from flask_socketio import SocketIO
 
-from vibration_meter.detect import THRESHOLDS_G, mode
+from vibration_meter.detect import THRESHOLDS_G, mode, products_payload
 from vibration_meter.metrics import RmsHistory, WindowMetrics
 
 TEMPLATE_DIR = Path(__file__).resolve().parent / "templates"
@@ -13,6 +13,8 @@ def _detect_payload() -> dict:
     return {
         "threshold_g": mode.threshold_g,
         "thresholds_g": list(THRESHOLDS_G),
+        "visible_g": mode.visible_g,
+        "products": products_payload(),
     }
 
 
@@ -35,6 +37,25 @@ def create_app() -> tuple[Flask, SocketIO]:
             return jsonify({"error": "missing threshold_g"}), 400
         try:
             mode.set_threshold(body["threshold_g"])
+        except ValueError as exc:
+            return jsonify({"error": str(exc)}), 400
+        return jsonify(_detect_payload())
+
+    @app.post("/api/products")
+    def mutate_products():
+        body = request.get_json(silent=True)
+        if not isinstance(body, dict):
+            return jsonify({"error": "missing action"}), 400
+        action = body.get("action")
+        if "threshold_g" not in body:
+            return jsonify({"error": "missing threshold_g"}), 400
+        try:
+            if action == "add":
+                mode.add_visible(body["threshold_g"])
+            elif action == "remove":
+                mode.remove_visible(body["threshold_g"])
+            else:
+                return jsonify({"error": "unknown action"}), 400
         except ValueError as exc:
             return jsonify({"error": str(exc)}), 400
         return jsonify(_detect_payload())

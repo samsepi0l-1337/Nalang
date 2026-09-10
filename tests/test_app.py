@@ -15,7 +15,7 @@ from vibration_meter.app import (
     parse_args,
     publish_reading,
 )
-from vibration_meter.detect import DEFAULT_THRESHOLD_G, DetectMode, mode
+from vibration_meter.detect import DetectMode, mode
 from vibration_meter.errors import HardwareError
 from vibration_meter.adxl355 import ODR_HZ
 from vibration_meter.display import UpdateThrottle
@@ -79,9 +79,9 @@ class FakeLcd:
 
 @pytest.fixture(autouse=True)
 def _reset_detect_mode():
-    mode.set_threshold(DEFAULT_THRESHOLD_G)
+    mode.reset()
     yield
-    mode.set_threshold(DEFAULT_THRESHOLD_G)
+    mode.reset()
 
 
 def test_publish_reading_logs_sample_ok(caplog):
@@ -240,6 +240,15 @@ def test_detect_8_is_accepted():
     args = parse_args(["--detect", "8"])
     assert apply_detect(args.detect) == 8.0
     assert mode.threshold_g == 8.0
+
+
+def test_detect_catalog_values_are_accepted():
+    for value, expected in (("0.1", 0.1), ("3", 3.0), ("10", 10.0)):
+        mode.reset()
+        args = parse_args(["--detect", value])
+        assert apply_detect(args.detect) == expected
+        assert mode.threshold_g == expected
+        assert expected in mode.visible_g
 
 
 def test_invalid_detect_exits_two(caplog):

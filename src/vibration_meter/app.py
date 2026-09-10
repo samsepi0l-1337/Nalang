@@ -7,7 +7,7 @@ from dataclasses import dataclass
 
 from vibration_meter.adxl355 import ODR_HZ
 from vibration_meter.collector import OverrunHandler, collect_window
-from vibration_meter.detect import DEFAULT_THRESHOLD_G, DetectMode, mode
+from vibration_meter.detect import DEFAULT_THRESHOLD_G, DetectMode, format_thresholds, mode
 from vibration_meter.display import UpdateThrottle, show
 from vibration_meter.errors import (
     HINT_BUZZ_WRITE,
@@ -25,7 +25,7 @@ from vibration_meter.metrics import RmsHistory
 from vibration_meter.outlier import BASELINE_S, PERSIST_S, windows_for
 from vibration_meter.webapp import create_app, reading_payload
 
-HINT_DETECT = "0.7g 또는 8g 를 --detect 로 고른다"
+HINT_DETECT = f"{format_thresholds(suffix='g')} 를 --detect 로 고른다"
 
 # 창 하나가 곧 갱신 주기다. 0.2초면 초당 5회.
 DEFAULT_INTERVAL_S = 0.2
@@ -209,20 +209,20 @@ def parse_args(argv: list[str] | None = None) -> argparse.Namespace:
         "--detect",
         type=float,
         default=DEFAULT_THRESHOLD_G,
-        help="경보 임계값(g). 0.7 또는 8",
+        help=f"경보 임계값(g). {format_thresholds()}",
     )
     return parser.parse_args(argv)
 
 
 def apply_detect(value: object) -> float:
-    """싱글톤 임계값을 고른다. 0.7/8 이 아니면 [BOOT] FAIL 후 종료한다."""
+    """싱글톤 임계값을 고른다. 카탈로그 밖이면 [BOOT] FAIL 후 종료한다."""
     try:
         return mode.set_threshold(value)
     except ValueError as exc:
         get_logger().error(
             format_fail(
                 "BOOT",
-                f"--detect {value} 은 0.7 또는 8 만 된다",
+                f"--detect {value} 은 {format_thresholds()} 만 된다",
                 HINT_DETECT,
             )
         )

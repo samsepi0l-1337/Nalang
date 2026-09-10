@@ -2,7 +2,7 @@
 
 Raspberry Pi Zero 2 W + ADXL355B + I2C 1602. 사양·배선·납땜·로그는 이 파일만 본다.
 
-벨트/윤활 자동 판정, FFT, 저장, AP, 여러 대는 하지 않는다. 목적: 평소와 다른 진동을 **측정·표시**. 오류 탐지 단위 두 개: **0.7 g**, **8 g**. 창 RMS가 선택한 값 이상이면 1602에 `OUTLIER`를 띄우고 패시브 부저를 켠다. 기본 **0.7 g**.
+벨트/윤활 자동 판정, FFT, 저장, AP, 여러 대는 하지 않는다. 목적: 평소와 다른 진동을 **측정·표시**. 오류 탐지 단위 다섯 개: **0.1 g**, **0.7 g**, **3 g**, **8 g**, **10 g** (웹에서 제품 1–5). 창 RMS가 선택한 값 이상이면 1602에 `OUTLIER`를 띄우고 패시브 부저를 켠다. 기본 **0.7 g**.
 
 | 항목       | 결정                                    |
 | ---------- | --------------------------------------- |
@@ -108,8 +108,8 @@ sudo systemctl start vibration-meter
 - **갱신 주기 = 창 길이.** 기본 0.2초(초당 5회). `--interval`로 바꾼다. 표본 수는 ODR × 창이라 0.2초면 200개다.
 - 최소 0.1초. 그보다 짧으면 20 Hz 진동이 창에 두 주기도 안 들어가 RMS가 요동친다. 짧게 주면 `[BOOT] FAIL`로 막고 종료 코드 2.
 - 1602는 최대 0.5초에 한 번만 쓴다. I2C로 32자 미는 데 수십 ms가 들어 매 창 쓰면 측정 시간을 갉아먹는다. **이상치 전환은 이 제한을 무시하고 즉시 뜬다.**
-- 오류 탐지 단위 두 개: **0.7 g**, **8 g**. 창 RMS가 선택한 값 이상이면 2행 `OUTLIER        X`, 패시브 부저 1 kHz (`tone()`). 기본 **0.7 g**.
-- 스위칭: CLI `--detect 0.7` 또는 `--detect 8`. 웹 `0.7 g` / `8 g` 버튼 (`GET`/`POST /api/detect`). 잘못된 `--detect`는 `[BOOT] FAIL`, 종료 코드 2.
+- 오류 탐지 단위 다섯 개: **0.1 g**, **0.7 g**, **3 g**, **8 g**, **10 g** (제품 1–5). 창 RMS가 선택한 값 이상이면 2행 `OUTLIER        X`, 패시브 부저 1 kHz (`tone()`). 기본 **0.7 g**. 웹 기본 버튼은 제품 2(0.7 g)·제품 4(8 g). 제품 추가/삭제로 나머지 제품을 넣거나 뺀다.
+- 스위칭: CLI `--detect 0.1`/`0.7`/`3`/`8`/`10`. 웹 제품 버튼 (`GET`/`POST /api/detect`). 제품 추가·삭제는 `POST /api/products`. 잘못된 `--detect`는 `[BOOT] FAIL`, 종료 코드 2.
 - 폰: 포트 5000, 최근 60초 RMS 그래프. 원시 파형은 보내지 않는다.
 
 스택: Python 3, `spidev`, `RPLCD`+`smbus2`, `gpiozero` `TonalBuzzer`, `numpy`, `Flask`+`Flask-SocketIO` (threading), Chart.js CDN. SPI `/dev/spidev0.0` 1 MHz mode 0. DEVID_AD=`0xAD`, RANGE=`0x83`, FILTER=`0x02`, POWER_CTL=`0x00`. 부저 BCM 12(핀 32), 1000 Hz.
@@ -123,7 +123,7 @@ stderr. 형식: `[SENSOR_ID] FAIL DEVID_AD=0x00 expected=0xAD | HINT ...`
 | 순서 | 코드         | OK 의미                     |
 | ---- | ------------ | --------------------------- |
 | 1    | `BOOT`       | 프로세스 시작               |
-| 2    | `DETECT`     | `[DETECT] OK threshold=0.7g` (또는 8g) |
+| 2    | `DETECT`     | `[DETECT] OK threshold=0.7g` (또는 0.1g/3g/8g/10g) |
 | 3    | `MOCK`       | `--mock` 합성 센서          |
 | 4    | `SPI_OPEN`   | `/dev/spidev0.0` 열림       |
 | 5    | `SENSOR_ID`  | DEVID_AD=`0xAD`             |
@@ -144,7 +144,7 @@ stderr. 형식: `[SENSOR_ID] FAIL DEVID_AD=0x00 expected=0xAD | HINT ...`
 
 | 코드        | 대표 메시지            | 볼 곳                         |
 | ----------- | ---------------------- | ----------------------------- |
-| `BOOT`      | `--detect` 잘못된 값   | 0.7 또는 8만. 배선 아님       |
+| `BOOT`      | `--detect` 잘못된 값   | 0.1, 0.7, 3, 8, 10만. 배선 아님 |
 | `SPI_OPEN`  | spidev 없음            | raspi-config SPI, 재부팅      |
 | `SPI_OPEN`  | Permission denied      | `usermod -aG spi,i2c,gpio $USER` |
 | (저널 없음) | 출력이 비어 있음       | `adm` 그룹 아님. `sudo journalctl` 또는 `usermod -aG adm $USER` |

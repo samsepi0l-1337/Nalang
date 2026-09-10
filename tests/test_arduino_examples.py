@@ -44,5 +44,5 @@ def test_buzzer_octaves_is_pinned():
 
 
 def test_alert_thresholds_match_readme_rule():
-    assert THRESHOLDS_G == (0.7, 8.0)
+    assert THRESHOLDS_G == (0.1, 0.7, 3.0, 8.0, 10.0)
     assert DEFAULT_THRESHOLD_G == 0.7
